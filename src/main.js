@@ -23,7 +23,8 @@ const play = async (url) => {
   }
 };
 
-import { metaFor, faviconFor } from './catalog.js';
+import { metaFor, faviconFor, hostOf } from './catalog.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, parseScore } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -89,6 +90,7 @@ const render = () => {
 // Icoon van een eigen spel laadt niet: toon de eerste letter.
 document.addEventListener('error', (e) => {
   const img = e.target;
+  if (img.tagName === 'IMG' && img.closest('.gboard')) { img.remove(); return; }
   if (img.tagName === 'IMG' && img.dataset.ini) {
     const s = document.createElement('span');
     s.className = 'ini'; s.textContent = img.dataset.ini;
@@ -96,7 +98,14 @@ document.addEventListener('error', (e) => {
   }
 }, true);
 
-const open = (i) => { const g = games[i]; if (g && !editing) play(g.url); };
+let lastGame = null;
+const open = (i) => {
+  const g = games[i];
+  if (!g || editing) return;
+  lastGame = { g, t: Date.now() };
+  hideToast();
+  play(g.url);
+};
 
 // ---- Slepen (eigen volgorde) — werkt met vinger en muis via pointer events ----
 let drag = null;
@@ -177,5 +186,148 @@ form.addEventListener('submit', (e) => {
   games.push({ name, url });
   save(); render(); dlg.close();
 });
+
+// ---------------- Scores ----------------
+// Sleutel per spel, gelijk voor iedereen met dezelfde link: host, plus eerste pad-deel als dat er is.
+const gameKey = (g) => {
+  let path = '';
+  try { path = new URL(g.url).pathname.split('/')[1] || ''; } catch (e) {}
+  return path ? hostOf(g.url) + '/' + path : hostOf(g.url);
+};
+
+const board = $('board'), boardList = $('boardList'), dayLabel = $('dayLabel'), nextDay = $('nextDay');
+const setupDlg = $('setup'), setupForm = $('setupForm'), pname = $('pname'), pgroup = $('pgroup'), setupErr = $('setupErr');
+const scoreDlg = $('scoreDlg'), scoreForm = $('scoreForm'), sgame = $('sgame'), stext = $('stext'), sval = $('sval'), scoreErr = $('scoreErr');
+const toast = $('toast');
+let viewDay = dayStr();
+let afterSetup = null;
+
+const fmt = (n) => (n === null || n === undefined || n === '') ? '–' : Number(n).toLocaleString('nl-NL');
+const dayName = (d) => {
+  const today = dayStr(), y = dayStr(new Date(Date.now() - 86400000));
+  if (d === today) return 'Vandaag';
+  if (d === y) return 'Gisteren';
+  return new Date(d + 'T12:00:00').toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+};
+const shiftDay = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return dayStr(x); };
+
+const openSetup = (then) => {
+  const p = getProfile();
+  pname.value = p ? p.name : '';
+  pgroup.value = p ? p.group : '';
+  setupErr.textContent = '';
+  afterSetup = then || null;
+  setupDlg.showModal();
+};
+$('newCode').addEventListener('click', () => { pgroup.value = newGroupCode(); });
+$('setupCancel').addEventListener('click', () => setupDlg.close());
+setupForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = pname.value.trim(), group = pgroup.value.trim().toUpperCase();
+  if (!name) { setupErr.textContent = 'Vul je naam in.'; return; }
+  if (group.length < 4) { setupErr.textContent = 'Kies een groepscode van minstens 4 tekens, of tik op Nieuwe code.'; return; }
+  setProfile({ name, group });
+  setupDlg.close();
+  const f = afterSetup; afterSetup = null;
+  if (f) f(); else if (!board.hidden) showBoard();
+});
+
+const showBoard = async () => {
+  const p = getProfile();
+  if (!p) { openSetup(showBoard); return; }
+  grid.hidden = true; board.hidden = false;
+  $('who').textContent = `${p.name} · ${p.group}`;
+  dayLabel.textContent = dayName(viewDay);
+  nextDay.disabled = viewDay >= dayStr();
+  boardList.innerHTML = '<p class="msg">Scores ophalen…</p>';
+  let rows;
+  try { rows = await loadScores(p.group, viewDay); }
+  catch (x) { boardList.innerHTML = `<p class="msg">Kon de scores niet ophalen. Controleer je internetverbinding.<br><small>${esc(x.message)}</small></p>`; return; }
+  const byGame = {};
+  rows.forEach((r) => { (byGame[r.game] = byGame[r.game] || []).push(r); });
+  const players = [...new Set(rows.map((r) => r.player))];
+  if (!players.includes(p.name)) players.push(p.name);
+  boardList.innerHTML = games.map((g) => {
+    const k = gameKey(g), list = (byGame[k] || []).slice().sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+    const top = list.length > 1 && list[0].score !== null ? list[0].score : null;
+    const m = metaFor(g);
+    const missing = players.filter((n) => !list.some((r) => r.player === n));
+    return `<div class="gboard"><h3>${m ? `<img src="${esc(m.image)}" alt="">` : ''}${esc(g.name)}</h3>`
+      + (list.length ? list.map((r) => `<div class="prow${r.score === top ? ' win' : ''}${r.player === p.name ? ' me' : ''}"><span class="pn">${esc(r.player)}</span><span class="ps">${fmt(r.score)}</span>`
+        + (r.result ? `<details><summary>uitslag tonen</summary><div class="raw">${esc(r.result)}</div></details>` : '') + '</div>').join('') : '')
+      + (missing.length ? `<p class="wait">Nog niet gespeeld: ${missing.map(esc).join(', ')}</p>` : '')
+      + '</div>';
+  }).join('');
+};
+const showGames = () => { board.hidden = true; grid.hidden = false; };
+
+$('scoresBtn').addEventListener('click', () => { viewDay = dayStr(); showBoard(); });
+$('back').addEventListener('click', showGames);
+$('who').addEventListener('click', () => openSetup());
+$('prevDay').addEventListener('click', () => { viewDay = shiftDay(viewDay, -1); showBoard(); });
+nextDay.addEventListener('click', () => { if (viewDay < dayStr()) { viewDay = shiftDay(viewDay, 1); showBoard(); } });
+
+const openScore = (g) => {
+  const go = () => {
+    sgame.innerHTML = games.map((x, i) => `<option value="${i}">${esc(x.name)}</option>`).join('');
+    if (g) sgame.value = String(games.indexOf(g));
+    stext.value = ''; sval.value = ''; scoreErr.textContent = '';
+    scoreDlg.showModal();
+    tryPaste(true);
+  };
+  if (!getProfile()) openSetup(go); else go();
+};
+const fillFromText = () => {
+  const n = parseScore(stext.value);
+  if (n !== null && n !== undefined) sval.value = String(n);
+};
+const tryPaste = async (quiet) => {
+  try {
+    const t = await navigator.clipboard.readText();
+    if (t && t.trim()) { stext.value = t.trim(); fillFromText(); }
+    else if (!quiet) scoreErr.textContent = 'Het klembord is leeg. Tik eerst in het spel op Delen.';
+  } catch (x) {
+    if (!quiet) scoreErr.textContent = 'Plakken lukt hier niet automatisch. Houd het tekstvak ingedrukt en kies Plakken.';
+  }
+};
+$('paste').addEventListener('click', () => tryPaste(false));
+stext.addEventListener('input', fillFromText);
+$('scoreCancel').addEventListener('click', () => scoreDlg.close());
+$('addScore').addEventListener('click', () => openScore(null));
+scoreForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const p = getProfile(), g = games[+sgame.value];
+  if (!p || !g) return;
+  const raw = sval.value.trim();
+  const score = raw === '' ? null : Number(raw.replace(/\./g, '').replace(',', '.'));
+  if (raw !== '' && !Number.isFinite(score)) { scoreErr.textContent = 'De score moet een getal zijn.'; return; }
+  if (score === null && !stext.value.trim()) { scoreErr.textContent = 'Plak je uitslag of vul een score in.'; return; }
+  const btn = $('scoreSave'); btn.disabled = true; btn.textContent = 'Opslaan…';
+  try {
+    await saveScore({ group: p.group, player: p.name, game: gameKey(g), day: dayStr(), score, result: stext.value.trim().slice(0, 2000) || null });
+    scoreDlg.close();
+    viewDay = dayStr();
+    showBoard();
+  } catch (x) {
+    scoreErr.textContent = 'Opslaan lukte niet. ' + x.message;
+  } finally { btn.disabled = false; btn.textContent = 'Opslaan'; }
+});
+
+// Na een spel: vraag of je je score wilt toevoegen.
+let toastTimer = null;
+function hideToast() { toast.hidden = true; clearTimeout(toastTimer); }
+const offerScore = () => {
+  if (!lastGame || Date.now() - lastGame.t < 4000) return;
+  const g = lastGame.g; lastGame = null;
+  $('toastText').textContent = `${g.name} gespeeld?`;
+  toast.hidden = false;
+  $('toastGo').onclick = () => { hideToast(); openScore(g); };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 15000);
+};
+$('toastX').addEventListener('click', hideToast);
+try { InAppBrowser.addListener('browserClosed', () => setTimeout(offerScore, 300)); } catch (e) {}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(offerScore, 300); });
+window.addEventListener('focus', () => setTimeout(offerScore, 300));
 
 render();
