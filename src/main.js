@@ -49,15 +49,11 @@ let games = load();
   save();
 }
 
-const PKEY = 'quickplay-prefs';
 const TINTS = ['#e9e1ff', '#ffe1ec', '#dcf7e9', '#dfeaff', '#fff0d6', '#d9f6f4'];
 const $ = (id) => document.getElementById(id);
-const app = $('app'), grid = $('grid'), editBtn = $('edit'), sortSel = $('sort'), hint = $('hint');
+const app = $('app'), grid = $('grid'), editBtn = $('edit');
 const dlg = $('dlg'), form = $('form'), fname = $('fname'), furl = $('furl'), err = $('err');
 
-let prefs = { view: 'grid', sort: 'manual' };
-try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PKEY) || '{}') }; } catch (e) {}
-const savePrefs = () => { try { localStorage.setItem(PKEY, JSON.stringify(prefs)); } catch (e) {} };
 let editing = false;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -77,23 +73,10 @@ const card = (g, i) => {
     + `<span class="grip" data-grip aria-label="Versleep ${esc(g.name)}">${GRIP}</span></div>`;
 };
 
-const ordered = () => {
-  const list = games.map((g, i) => ({ g, i }));
-  const coll = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
-  if (prefs.sort === 'az') list.sort((a, b) => coll.compare(a.g.name, b.g.name));
-  if (prefs.sort === 'za') list.sort((a, b) => coll.compare(b.g.name, a.g.name));
-  return list;
-};
-
 const render = () => {
-  const manual = prefs.sort === 'manual' && !editing;
-  app.classList.toggle('is-list', prefs.view === 'list');
-  app.classList.toggle('manual', manual);
+  app.classList.toggle('manual', !editing);
   grid.classList.toggle('editing', editing);
-  sortSel.value = prefs.sort;
-  document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === prefs.view));
-  hint.hidden = !manual || games.length < 2;
-  grid.innerHTML = ordered().map(({ g, i }) => card(g, i)).join('')
+  grid.innerHTML = games.map(card).join('')
     + '<button class="add" type="button" id="addBtn"><span>+</span>Spel toevoegen</button>';
 };
 
@@ -119,7 +102,7 @@ const place = () => {
 };
 grid.addEventListener('pointerdown', (e) => {
   const handle = e.target.closest('[data-grip]');
-  if (!handle || prefs.sort !== 'manual' || editing) return;
+  if (!handle || editing) return;
   e.preventDefault();
   const el = handle.closest('.card');
   const r = el.getBoundingClientRect();
@@ -170,12 +153,6 @@ grid.addEventListener('keydown', (e) => {
   if (c && e.target === c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(+c.dataset.idx); }
 });
 
-sortSel.addEventListener('change', () => { prefs.sort = sortSel.value; savePrefs(); render(); });
-document.querySelector('.views').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-view]');
-  if (!b) return;
-  prefs.view = b.dataset.view; savePrefs(); render();
-});
 editBtn.addEventListener('click', () => {
   editing = !editing;
   editBtn.textContent = editing ? 'Klaar' : 'Bewerken';

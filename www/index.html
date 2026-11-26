@@ -11,7 +11,7 @@ VOICE: licht, vrolijk, verzorgd — een collectie kleine games
 IDEA: één familie witte kaarten; elk spel toont zijn eigen preview
 PICTURE: de preview-afbeelding van elke site, op de eigen themakleur van het spel
 COLOUR and TYPE: zacht lila achtergrond, witte kaarten, groen accent voor bediening; Rubik
-LAYOUT: kleine header, subtiele balk met sorteren en weergave, dan raster of lijst
+LAYOUT: kleine header met logo, daaronder de lijst; volgorde slepen met de puntjes
 */
 @font-face{font-family:Rubik;src:url(fonts/rubik-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
 @font-face{font-family:Rubik;src:url(fonts/rubik-latin-600-normal.woff2) format('woff2');font-weight:600;font-display:swap}
@@ -24,23 +24,13 @@ body{margin:0;background:var(--bg);background-image:radial-gradient(900px 420px 
 :focus-visible{outline:3px solid #7b4dff;outline-offset:3px}
 button,select{font:inherit;color:inherit}
 
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(22px + env(safe-area-inset-top)) 0 6px}
-.logo{display:flex;align-items:center;gap:10px;margin:0;font:600 24px/1 Rubik,sans-serif;letter-spacing:-.01em}
-.logo svg{width:30px;height:30px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(22px + env(safe-area-inset-top)) 0 18px}
+.logo{display:flex;align-items:center;gap:11px;margin:0;font:800 27px/1 Rubik,sans-serif;letter-spacing:-.02em}
+.logo svg{width:44px;height:44px;flex:none;transform:rotate(-4deg)}
+.logo em{font-style:normal;background:linear-gradient(90deg,#7b4dff,#ff4f97);-webkit-background-clip:text;background-clip:text;color:transparent}
 .edit{background:none;border:0;color:var(--mute);font-weight:600;font-size:15px;min-height:44px;padding:0 4px;cursor:pointer}
 .edit[aria-pressed=true]{color:var(--green)}
 
-/* Balk: sorteren + weergave */
-.tools{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0 14px}
-.sort{display:flex;align-items:center;gap:6px;color:var(--mute);font-size:14px}
-.sort select{appearance:none;-webkit-appearance:none;background:transparent;border:0;color:var(--ink);font-weight:600;font-size:14px;min-height:40px;padding:0 22px 0 4px;cursor:pointer;
-background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(-45deg,transparent 50%,var(--mute) 50%);background-size:5px 5px;background-position:calc(100% - 9px) 52%,calc(100% - 4px) 52%;background-repeat:no-repeat}
-.sort select option{background:var(--card);color:var(--ink)}
-.views{display:flex;background:var(--card);border:1px solid var(--edge);border-radius:10px;padding:3px;gap:2px}
-.views button{width:40px;height:36px;border:0;border-radius:7px;background:transparent;color:var(--mute);cursor:pointer;display:grid;place-items:center}
-.views button[aria-pressed=true]{background:var(--greenbg);color:#0b2a1c}
-.views svg{width:16px;height:16px}
-.hint{color:var(--mute);font-size:13px;margin:-6px 0 12px}
 
 /* Kaarten: één stijl voor alle spellen */
 .list{display:grid;gap:12px;padding-bottom:calc(32px + env(safe-area-inset-bottom));grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr))}
@@ -91,26 +81,18 @@ input:focus{outline:none;border-color:var(--green)}
 </style>
 </head>
 <body>
-<div class="wrap" id="app">
+<div class="wrap is-list manual" id="app">
   <header>
-    <h1 class="logo"><svg viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="#3dffa0"/><path d="M12 9.5v11l9-5.5z" fill="#211a3d"/></svg>Quickplay</h1>
+    <h1 class="logo"><svg viewBox="0 0 44 44" aria-hidden="true">
+      <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a5cff"/><stop offset="1" stop-color="#ff5fa2"/></linearGradient></defs>
+      <rect x="1" y="1" width="42" height="42" rx="13" fill="url(#lg)"/>
+      <rect x="1" y="1" width="42" height="42" rx="13" fill="none" stroke="#211a3d" stroke-opacity=".12" stroke-width="2"/>
+      <circle cx="20" cy="20" r="10.5" fill="none" stroke="#fff" stroke-width="6.5"/>
+      <path d="M31.5 21.5l-7.5 10.5h5.5l-3 9 10-12.5h-5.8l3.3-7z" fill="#ffd23d" stroke="#211a3d" stroke-width="1.8" stroke-linejoin="round"/>
+      <circle cx="34.5" cy="9.5" r="2.2" fill="#3dffa0"/><circle cx="8.5" cy="35" r="1.6" fill="#fff" opacity=".8"/>
+    </svg><span>Quick<em>play</em></span></h1>
     <button class="edit" id="edit" type="button" aria-pressed="false">Bewerken</button>
   </header>
-
-  <div class="tools">
-    <label class="sort">Sorteren
-      <select id="sort" aria-label="Sorteren">
-        <option value="manual">Eigen volgorde</option>
-        <option value="az">Naam A–Z</option>
-        <option value="za">Naam Z–A</option>
-      </select>
-    </label>
-    <div class="views" role="group" aria-label="Weergave">
-      <button type="button" data-view="grid" aria-label="Raster" aria-pressed="true"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></svg></button>
-      <button type="button" data-view="list" aria-label="Lijst" aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1.5" width="14" height="3.5" rx="1.2"/><rect x="1" y="6.25" width="14" height="3.5" rx="1.2"/><rect x="1" y="11" width="14" height="3.5" rx="1.2"/></svg></button>
-    </div>
-  </div>
-  <p class="hint" id="hint" hidden>Sleep aan <b>⠿</b> om de volgorde te veranderen.</p>
 
   <main class="list" id="grid" aria-label="Spellen"></main>
 </div>
