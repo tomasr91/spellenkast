@@ -7,75 +7,113 @@
 <title>Quickplay</title>
 <style>
 /*
-VOICE: rustig en persoonlijk — een kleine gamebibliotheek
-IDEA: een plank met spellen; elke tegel toont hoe het spel er echt uitziet
-PICTURE: de eigen preview-afbeelding van elk spel, in zijn eigen themakleur
-COLOUR and TYPE: rustig nachtblauw; tegels in de kleur van het spel; Rubik
-LAYOUT: kleine header, direct het raster; 2 kolommen op telefoon, meer op breder scherm
+VOICE: rustig, speels, verzorgd — een collectie kleine, originele games
+IDEA: één familie kaarten; elk spel heeft zijn eigen mascotte als gezicht
+PICTURE: de illustraties per spel, als kleuraccent in identieke kaarten
+COLOUR and TYPE: nachtblauw, kaarten één tint lichter, groen accent voor bediening; Rubik
+LAYOUT: kleine header, subtiele balk met sorteren en weergave, dan raster of lijst
 */
 @font-face{font-family:Rubik;src:url(fonts/rubik-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
 @font-face{font-family:Rubik;src:url(fonts/rubik-latin-600-normal.woff2) format('woff2');font-weight:600;font-display:swap}
-:root{color-scheme:dark;--bg:#14172a;--ink:#eef0fa;--mute:#9aa0c4;--line:#2d3256;--green:#3dffa0}
+@font-face{font-family:Rubik;src:url(fonts/rubik-latin-800-normal.woff2) format('woff2');font-weight:800;font-display:swap}
+:root{color-scheme:dark;--bg:#14172a;--card:#1c2040;--well:#232851;--edge:#2c3260;--ink:#eef0fa;--mute:#9aa0c4;--green:#3dffa0}
 *{box-sizing:border-box;min-width:0}
 html{-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Rubik,system-ui,sans-serif;overflow-x:clip}
 .wrap{max-width:980px;margin:0 auto;padding:0 max(5vw,16px)}
 :focus-visible{outline:3px solid var(--green);outline-offset:3px}
+button,select{font:inherit;color:inherit}
 
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(22px + env(safe-area-inset-top)) 0 18px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(22px + env(safe-area-inset-top)) 0 6px}
 .logo{display:flex;align-items:center;gap:10px;margin:0;font:600 24px/1 Rubik,sans-serif;letter-spacing:-.01em}
 .logo svg{width:30px;height:30px}
-.edit{background:none;border:0;color:var(--mute);font:600 15px Rubik,sans-serif;min-height:44px;padding:0 4px;cursor:pointer}
+.edit{background:none;border:0;color:var(--mute);font-weight:600;font-size:15px;min-height:44px;padding:0 4px;cursor:pointer}
 .edit[aria-pressed=true]{color:var(--green)}
 
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr));gap:14px;padding-bottom:calc(32px + env(safe-area-inset-bottom))}
-@media(max-width:340px){.grid{grid-template-columns:1fr 1fr;gap:10px}}
+/* Balk: sorteren + weergave */
+.tools{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0 14px}
+.sort{display:flex;align-items:center;gap:6px;color:var(--mute);font-size:14px}
+.sort select{appearance:none;-webkit-appearance:none;background:transparent;border:0;color:var(--ink);font-weight:600;font-size:14px;min-height:40px;padding:0 22px 0 4px;cursor:pointer;
+background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(-45deg,transparent 50%,var(--mute) 50%);background-size:5px 5px;background-position:calc(100% - 9px) 52%,calc(100% - 4px) 52%;background-repeat:no-repeat}
+.sort select option{background:var(--card);color:var(--ink)}
+.views{display:flex;background:var(--card);border:1px solid var(--edge);border-radius:10px;padding:3px;gap:2px}
+.views button{width:40px;height:36px;border:0;border-radius:7px;background:transparent;color:var(--mute);cursor:pointer;display:grid;place-items:center}
+.views button[aria-pressed=true]{background:var(--well);color:var(--green)}
+.views svg{width:16px;height:16px}
+.hint{color:var(--mute);font-size:13px;margin:-6px 0 12px}
 
-.tile{position:relative;border-radius:16px;overflow:hidden;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;cursor:pointer;user-select:none;
-box-shadow:0 0 0 1px rgba(255,255,255,.08),0 10px 22px -14px rgba(0,0,0,.8);transition:transform .15s ease,box-shadow .15s ease}
-.pic{position:relative;aspect-ratio:1.6;overflow:hidden;background:var(--bg)}
-.pic img{position:absolute;inset:0;width:100%;height:100%;display:block}
-.pic.cover img{object-fit:cover}
-.pic.contain img{object-fit:contain;padding:10%}
-.pic.icon img{object-fit:contain;width:40%;height:auto;aspect-ratio:1;inset:0;margin:auto;border-radius:12px}
-.pic.fallback::after{content:attr(data-initial);position:absolute;inset:0;display:grid;place-items:center;font:600 44px/1 Rubik,sans-serif;color:var(--fg);opacity:.9}
-.tile b{display:block;padding:10px 12px 12px;font:600 16px/1.2 Rubik,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media(hover:hover){.tile:hover{transform:translateY(-3px);box-shadow:0 0 0 1px rgba(255,255,255,.18),0 16px 28px -14px rgba(0,0,0,.9)}}
-.tile:active{transform:scale(.98)}
+/* Kaarten: één stijl voor alle spellen */
+.list{display:grid;gap:12px;padding-bottom:calc(32px + env(safe-area-inset-bottom));grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr))}
+.card{position:relative;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:10px;cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .14s ease,border-color .14s ease}
+@media(hover:hover){.card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--tint) 55%,var(--edge))}}
+.card:active{transform:scale(.985)}
+.art{position:relative;aspect-ratio:1.15;border-radius:10px;background:var(--well);display:grid;place-items:center;overflow:hidden}
+.art::before{content:"";position:absolute;inset:0;background:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.3px) 0 0/7px 7px}
+.art::after{content:"";position:absolute;left:18%;right:18%;bottom:12%;height:14%;border-radius:50%;background:var(--tint);opacity:.13;filter:blur(6px)}
+.art svg{position:relative;z-index:1;width:68%;height:68%}
+.art img{position:relative;z-index:1;width:46%;height:46%;object-fit:contain;border-radius:12px}
+.art .ini{position:relative;z-index:1;font:800 34px/1 Rubik,sans-serif;color:var(--tint)}
+.name{display:block;padding:10px 2px 2px;font-weight:600;font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grip{display:none}
 
-.add{min-height:120px;height:100%;border-radius:16px;border:2px dashed var(--line);background:transparent;color:var(--mute);cursor:pointer;
-display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font:600 15px Rubik,sans-serif}
-.add span{font:400 34px/1 Rubik,sans-serif;color:var(--green)}
+/* Lijstweergave: volle breedte, illustratie links, naam rechts */
+.is-list .list{grid-template-columns:1fr;gap:10px}
+.is-list .card{flex-direction:row;align-items:center;gap:16px;padding:10px}
+.is-list .art{flex:0 0 84px;width:84px;aspect-ratio:1}
+.is-list .art svg{width:74%;height:74%}
+.is-list .name{flex:1;padding:0;font-size:19px}
+
+/* Eigen volgorde: sleepgreep */
+.manual .grip{display:grid;place-items:center;position:absolute;top:6px;right:6px;z-index:2;width:44px;height:44px;border-radius:10px;color:var(--mute);touch-action:none;cursor:grab;background:rgba(20,23,42,.55)}
+.is-list.manual .grip{position:static;flex:none;background:transparent}
+.grip svg{width:18px;height:18px}
+.card.dragging{z-index:10;cursor:grabbing;transition:none;border-color:var(--green);box-shadow:0 18px 30px -12px rgba(0,0,0,.8)}
+.card.dragging .grip{cursor:grabbing;color:var(--green)}
+
+.add{border:2px dashed var(--edge);border-radius:14px;background:transparent;color:var(--mute);cursor:pointer;min-height:84px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:15px;padding:12px}
+.add span{font-size:28px;line-height:1;color:var(--green)}
 .add:hover{border-color:var(--green);color:var(--ink)}
-
-.del{position:absolute;top:6px;right:6px;width:40px;height:40px;border-radius:10px;border:0;background:#ff4d5e;color:#fff;font:600 20px Rubik,sans-serif;cursor:pointer;display:none;z-index:2}
+.del{position:absolute;top:6px;left:6px;z-index:3;width:40px;height:40px;border-radius:10px;border:0;background:#ff4d5e;color:#fff;font-weight:600;font-size:20px;cursor:pointer;display:none}
 .editing .del{display:block}
-.editing .tile{animation:wob .28s ease-in-out infinite alternate;cursor:default}
-@keyframes wob{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
-@media(prefers-reduced-motion:reduce){.tile{transition:none}.editing .tile{animation:none}}
+.is-list .editing .del{position:static;flex:none}
+.editing .card{cursor:default}
+@media(prefers-reduced-motion:reduce){.card{transition:none}}
 
-dialog{border:0;border-radius:16px;padding:22px;width:min(400px,92vw);background:#1d2140;color:var(--ink)}
+dialog{border:0;border-radius:16px;padding:22px;width:min(400px,92vw);background:var(--card);color:var(--ink)}
 dialog::backdrop{background:rgba(6,8,20,.7)}
-dialog h2{margin:0 0 6px;font:600 22px Rubik,sans-serif}
+dialog h2{margin:0 0 6px;font-weight:600;font-size:22px}
 label{display:block;font-weight:600;margin-top:12px;font-size:15px}
-input{width:100%;min-height:48px;font:16px Rubik,sans-serif;padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);margin-top:4px}
+input{width:100%;min-height:48px;font:16px Rubik,sans-serif;padding:8px 12px;border-radius:10px;border:2px solid var(--edge);background:var(--bg);color:var(--ink);margin-top:4px}
 input:focus{outline:none;border-color:var(--green)}
 .err{color:#ff7a88;font-size:14px;min-height:20px;margin:6px 0 0}
 .btns{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
-.btn{min-height:44px;padding:0 16px;border-radius:10px;border:2px solid var(--line);background:transparent;color:var(--ink);font:600 15px Rubik,sans-serif;cursor:pointer}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;border:2px solid var(--edge);background:transparent;font-weight:600;font-size:15px;cursor:pointer}
 .btn.on{background:var(--green);border-color:var(--green);color:#06140d}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="app">
   <header>
-    <h1 class="logo">
-      <svg viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="#3dffa0"/><path d="M12 9.5v11l9-5.5z" fill="#14172a"/></svg>
-      Quickplay
-    </h1>
+    <h1 class="logo"><svg viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="#3dffa0"/><path d="M12 9.5v11l9-5.5z" fill="#14172a"/></svg>Quickplay</h1>
     <button class="edit" id="edit" type="button" aria-pressed="false">Bewerken</button>
   </header>
-  <main class="grid" id="grid" aria-label="Spellen"></main>
+
+  <div class="tools">
+    <label class="sort">Sorteren
+      <select id="sort" aria-label="Sorteren">
+        <option value="manual">Eigen volgorde</option>
+        <option value="az">Naam A–Z</option>
+        <option value="za">Naam Z–A</option>
+      </select>
+    </label>
+    <div class="views" role="group" aria-label="Weergave">
+      <button type="button" data-view="grid" aria-label="Raster" aria-pressed="true"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></svg></button>
+      <button type="button" data-view="list" aria-label="Lijst" aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1.5" width="14" height="3.5" rx="1.2"/><rect x="1" y="6.25" width="14" height="3.5" rx="1.2"/><rect x="1" y="11" width="14" height="3.5" rx="1.2"/></svg></button>
+    </div>
+  </div>
+  <p class="hint" id="hint" hidden>Sleep aan <b>⠿</b> om de volgorde te veranderen.</p>
+
+  <main class="list" id="grid" aria-label="Spellen"></main>
 </div>
 
 <dialog id="dlg">

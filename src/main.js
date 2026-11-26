@@ -23,7 +23,7 @@ const play = async (url) => {
   }
 };
 
-import { metaFor, faviconFor } from './catalog.js';
+import { metaFor, artSvg, faviconFor } from './catalog.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -49,54 +49,130 @@ let games = load();
   save();
 }
 
-const COLORS = ['#5a35d0', '#c43d6b', '#1f7a52', '#2a5bd7', '#b8701e', '#0f7c86'];
+const PKEY = 'quickplay-prefs';
+const TINTS = ['#8a63ff', '#ff6fa8', '#3dffa0', '#4a9dff', '#ffb547', '#2ee8d8'];
 const $ = (id) => document.getElementById(id);
-const grid = $('grid'), editBtn = $('edit'), dlg = $('dlg'), form = $('form'), fname = $('fname'), furl = $('furl'), err = $('err');
+const app = $('app'), grid = $('grid'), editBtn = $('edit'), sortSel = $('sort'), hint = $('hint');
+const dlg = $('dlg'), form = $('form'), fname = $('fname'), furl = $('furl'), err = $('err');
+
+let prefs = { view: 'grid', sort: 'manual' };
+try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PKEY) || '{}') }; } catch (e) {}
+const savePrefs = () => { try { localStorage.setItem(PKEY, JSON.stringify(prefs)); } catch (e) {} };
 let editing = false;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const hash = (s) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
+const GRIP = '<svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><circle cx="6" cy="4" r="1.6"/><circle cx="12" cy="4" r="1.6"/><circle cx="6" cy="9" r="1.6"/><circle cx="12" cy="9" r="1.6"/><circle cx="6" cy="14" r="1.6"/><circle cx="12" cy="14" r="1.6"/></svg>';
 
-const tile = (g, i) => {
+const card = (g, i) => {
   const m = metaFor(g);
-  const bg = m ? m.bg : COLORS[hash(g.name + g.url) % COLORS.length];
-  const fg = m ? m.fg : '#ffffff';
-  const fit = m ? m.fit : 'icon';
-  const src = m ? m.image : faviconFor(g);
-  const initial = esc((g.name.trim()[0] || '?').toUpperCase());
-  return `<div class="tile" role="button" tabindex="0" style="--bg:${bg};--fg:${fg}" data-open="${i}" aria-label="Speel ${esc(g.name)}">`
-    + `<div class="pic ${fit}" data-initial="${initial}"><img src="${esc(src)}" alt="" loading="lazy" decoding="async"></div>`
-    + `<b>${esc(g.name)}</b>`
-    + `<button class="del" type="button" data-del="${i}" aria-label="Verwijder ${esc(g.name)}">×</button></div>`;
+  const tint = m ? m.tint : TINTS[hash(g.name + g.url) % TINTS.length];
+  const art = m ? artSvg(m.art)
+    : `<img src="${esc(faviconFor(g))}" alt="" loading="lazy" data-ini="${esc((g.name.trim()[0] || '?').toUpperCase())}">`;
+  return `<div class="card" role="button" tabindex="0" style="--tint:${tint}" data-idx="${i}" aria-label="Speel ${esc(g.name)}">`
+    + `<button class="del" type="button" data-del="${i}" aria-label="Verwijder ${esc(g.name)}">×</button>`
+    + `<div class="art">${art}</div><span class="name">${esc(g.name)}</span>`
+    + `<span class="grip" data-grip aria-label="Versleep ${esc(g.name)}">${GRIP}</span></div>`;
 };
 
-// Afbeelding laadt niet (offline, of site zonder icoon): toon de eerste letter.
-document.addEventListener('error', (e) => {
-  const img = e.target;
-  if (img.tagName === 'IMG' && img.parentElement && img.parentElement.classList.contains('pic')) {
-    img.parentElement.classList.add('fallback');
-    img.remove();
-  }
-}, true);
+const ordered = () => {
+  const list = games.map((g, i) => ({ g, i }));
+  const coll = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
+  if (prefs.sort === 'az') list.sort((a, b) => coll.compare(a.g.name, b.g.name));
+  if (prefs.sort === 'za') list.sort((a, b) => coll.compare(b.g.name, a.g.name));
+  return list;
+};
 
 const render = () => {
+  const manual = prefs.sort === 'manual' && !editing;
+  app.classList.toggle('is-list', prefs.view === 'list');
+  app.classList.toggle('manual', manual);
   grid.classList.toggle('editing', editing);
-  grid.innerHTML = games.map(tile).join('')
+  sortSel.value = prefs.sort;
+  document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === prefs.view));
+  hint.hidden = !manual || games.length < 2;
+  grid.innerHTML = ordered().map(({ g, i }) => card(g, i)).join('')
     + '<button class="add" type="button" id="addBtn"><span>+</span>Spel toevoegen</button>';
 };
 
+// Icoon van een eigen spel laadt niet: toon de eerste letter.
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (img.tagName === 'IMG' && img.dataset.ini) {
+    const s = document.createElement('span');
+    s.className = 'ini'; s.textContent = img.dataset.ini;
+    img.replaceWith(s);
+  }
+}, true);
+
 const open = (i) => { const g = games[i]; if (g && !editing) play(g.url); };
 
+// ---- Slepen (eigen volgorde) — werkt met vinger en muis via pointer events ----
+let drag = null;
+const place = () => {
+  const el = drag.el;
+  el.style.transform = 'none';
+  const r = el.getBoundingClientRect();
+  el.style.transform = `translate(${drag.x - drag.gx - r.left}px, ${drag.y - drag.gy - r.top}px) scale(1.02)`;
+};
+grid.addEventListener('pointerdown', (e) => {
+  const handle = e.target.closest('[data-grip]');
+  if (!handle || prefs.sort !== 'manual' || editing) return;
+  e.preventDefault();
+  const el = handle.closest('.card');
+  const r = el.getBoundingClientRect();
+  drag = { el, id: e.pointerId, x: e.clientX, y: e.clientY, gx: e.clientX - r.left, gy: e.clientY - r.top };
+  el.classList.add('dragging');
+  handle.setPointerCapture(e.pointerId);
+  place();
+});
+grid.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  drag.x = e.clientX; drag.y = e.clientY;
+  const el = drag.el;
+  el.style.visibility = 'hidden';
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  el.style.visibility = '';
+  const target = under && under.closest('.card');
+  if (target && target !== el && target.parentElement === grid) {
+    const cards = [...grid.querySelectorAll('.card')];
+    if (cards.indexOf(target) > cards.indexOf(el)) target.after(el); else target.before(el);
+  }
+  if (e.clientY < 70) window.scrollBy(0, -10);
+  else if (e.clientY > window.innerHeight - 70) window.scrollBy(0, 10);
+  place();
+});
+const endDrag = (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const order = [...grid.querySelectorAll('.card')].map((c) => games[+c.dataset.idx]);
+  drag.el.classList.remove('dragging');
+  drag.el.style.transform = '';
+  drag = null;
+  games = order;
+  save();
+  render();
+};
+grid.addEventListener('pointerup', endDrag);
+grid.addEventListener('pointercancel', endDrag);
+
 grid.addEventListener('click', (e) => {
+  if (e.target.closest('[data-grip]')) return;
   const d = e.target.closest('[data-del]');
   if (d) { e.stopPropagation(); games.splice(+d.dataset.del, 1); save(); render(); return; }
   if (e.target.closest('#addBtn')) { err.textContent = ''; form.reset(); dlg.showModal(); fname.focus(); return; }
-  const t = e.target.closest('[data-open]');
-  if (t) open(+t.dataset.open);
+  const c = e.target.closest('.card');
+  if (c) open(+c.dataset.idx);
 });
 grid.addEventListener('keydown', (e) => {
-  const t = e.target.closest('[data-open]');
-  if (t && e.target === t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(+t.dataset.open); }
+  const c = e.target.closest('.card');
+  if (c && e.target === c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(+c.dataset.idx); }
+});
+
+sortSel.addEventListener('change', () => { prefs.sort = sortSel.value; savePrefs(); render(); });
+document.querySelector('.views').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-view]');
+  if (!b) return;
+  prefs.view = b.dataset.view; savePrefs(); render();
 });
 editBtn.addEventListener('click', () => {
   editing = !editing;
