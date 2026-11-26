@@ -51,8 +51,31 @@ const num = (s) => {
   if (/^\d{1,3}([.,]\d{3})+$/.test(clean)) return Number(clean.replace(/[.,]/g, ''));
   return Number(clean.replace(',', '.'));
 };
+// Per spel: hoe de gedeelde uitslag eruitziet (op basis van echte voorbeelden).
+const GAMES = [
+  // "Chainle #99 · 2,335 🔗"
+  { key: 'chainle.io', name: /chainle/i, score: /chainle\s*#\d+\s*·\s*([\d.,]+)/i },
+  // "Farflung #53 · 240/500 km"
+  { key: 'farflung.game', name: /farflung/i, score: /farflung\s*#\d+\s*·\s*([\d.,]+)\s*\/\s*[\d.,]+\s*km/i },
+  // "Krillion #133 🦐" en op een volgende regel "355"
+  { key: 'krillion.io', name: /krillion/i, score: /krillion\s*#\d+[^\n]*\n\s*(?:\n\s*)*([\d.,]+)\s*(?:\n|$)/i },
+  // "⬜🟨🟩🟨🟩 2,636 / 5,000"
+  { key: 'guessdash.com/extraplot', name: /extraplot/i, score: /([\d.,]+)\s*\/\s*5[.,]?000/ }
+];
+
+// Welk spel hoort bij deze uitslag? Geeft de sleutel terug, of null.
+export const detectGame = (text) => {
+  const g = GAMES.find((x) => x.name.test(String(text || '')));
+  return g ? g.key : null;
+};
+
 export function parseScore(text) {
   if (!text) return null;
+  const known = GAMES.find((x) => x.name.test(text));
+  if (known) {
+    const m = String(text).match(known.score);
+    if (m) return num(m[1]);
+  }
   // datums en tijden eruit, zodat die niet als score worden gezien
   const t = String(text).replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ').replace(/\b\d{1,2}:\d{2}\b/g, ' ');
   // "score: 77" of "punten 77"

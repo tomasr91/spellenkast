@@ -24,7 +24,7 @@ const play = async (url) => {
 };
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
-import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, parseScore } from './scores.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, parseScore, detectGame } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -278,6 +278,8 @@ const openScore = (g) => {
   if (!getProfile()) openSetup(go); else go();
 };
 const fillFromText = () => {
+  const k = detectGame(stext.value);
+  if (k) { const i = games.findIndex((g) => gameKey(g) === k); if (i >= 0) sgame.value = String(i); }
   const n = parseScore(stext.value);
   if (n !== null && n !== undefined) sval.value = String(n);
 };
