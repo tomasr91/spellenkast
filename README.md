@@ -5,7 +5,7 @@ Een Android-app om webspelletjes te verzamelen (zoals Farflung en Krillion) en z
 ## Installeren op je telefoon
 
 1. Ga op je telefoon naar **Releases → Quickplay (laatste versie)** in deze repo.
-2. Tik op `Quickplay.apk` om hem te downloaden.
+2. Tik op `gamehub.apk` om hem te downloaden.
 3. Open het bestand. Android vraagt één keer of je browser apps mag installeren: sta dat toe.
 4. Open **Quickplay**.
 

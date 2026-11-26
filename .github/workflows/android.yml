@@ -36,19 +36,19 @@ jobs:
           ./gradlew assembleDebug --no-daemon
 
       - name: APK hernoemen
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Quickplay.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk gamehub.apk
 
       - name: Bewaren als build-bestand
         uses: actions/upload-artifact@v4
         with:
-          name: Quickplay-apk
-          path: Quickplay.apk
+          name: gamehub-apk
+          path: gamehub.apk
 
       - name: Publiceren als release "laatste"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete laatste --yes --cleanup-tag || true
-          gh release create laatste Quickplay.apk \
+          gh release create laatste gamehub.apk \
             --title "Quickplay (laatste versie)" \
-            --notes "Automatisch gebouwd uit commit ${GITHUB_SHA::7}. Open deze pagina op je telefoon en tik op Quickplay.apk om te installeren."
+            --notes "Automatisch gebouwd uit commit ${GITHUB_SHA::7}. Open deze pagina op je telefoon en tik op gamehub.apk om te installeren."

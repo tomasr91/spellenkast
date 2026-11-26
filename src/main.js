@@ -29,8 +29,8 @@ const KEY = 'spellenkast-v1';
 const DEFAULT = [
   { name: 'Farflung', url: 'https://farflung.game' },
   { name: 'Krillion', url: 'https://krillion.io' },
-  { name: 'Crowdict', url: 'https://crowdict.com' },
-  { name: 'Chainle', url: 'https://chainle.io' }
+  { name: 'Chainle', url: 'https://chainle.io' },
+  { name: 'Extraplot', url: 'https://guessdash.com/extraplot?c=6pcx7c' }
 ];
 
 const load = () => { try { const v = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(v)) return v; } catch (e) {} return DEFAULT.slice(); };
@@ -46,6 +46,12 @@ let games = load();
     if(!seen.includes(d.url)){if(!games.some(g=>g.url===d.url))games.push({...d});seen.push(d.url)}
   }
   try{localStorage.setItem(SEEN,JSON.stringify(seen))}catch(e){}
+  // Spellen die uit de standaardlijst zijn gehaald, één keer verwijderen (daarna zelf weer toe te voegen).
+  const GONE='spellenkast-removed-defaults', REMOVE=['https://crowdict.com'];
+  let gone; try{gone=JSON.parse(localStorage.getItem(GONE))}catch(e){}
+  if(!Array.isArray(gone))gone=[];
+  for(const u of REMOVE){ if(!gone.includes(u)){ games=games.filter(g=>g.url.replace(/\/$/,'')!==u); gone.push(u); } }
+  try{localStorage.setItem(GONE,JSON.stringify(gone))}catch(e){}
   save();
 }
 
