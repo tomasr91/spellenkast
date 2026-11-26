@@ -1,34 +1,10 @@
-// Gegevens over bekende spellen, opgehaald van de sites zelf (titel, uitleg, preview-afbeelding).
-// Sleutel = hostnaam. Spellen die je zelf toevoegt zonder vermelding hier krijgen een pixel-cover.
+// Eigen identiteit per bekend spel: kleur en pixel-illustratie. Sleutel = hostnaam.
+// Spellen die je zelf toevoegt krijgen een joystick in een kleur afgeleid van de naam.
 
 export const CATALOG = {
-  'farflung.game': {
-    name: 'Farflung',
-    blurb: 'Dagelijkse kaartquiz. Prik voor elk van vijf opdrachten een land op de wereldkaart; hoe zeldzamer je keuze, hoe verder je reist.',
-    short: 'Prik landen op de kaart. Zeldzaam reist verder.',
-    genres: ['Geografie', 'Dagelijks'],
-    facts: ['5 opdrachten', 'Elke dag nieuw'],
-    image: 'https://farflung.game/share.png',
-    accent: '#3dffa0'
-  },
-  'krillion.io': {
-    name: 'Krillion',
-    blurb: 'Elke dag zeven opdrachten, voor iedereen gelijk. Bedenk antwoorden waar bijna niemand op komt en duik zo diep mogelijk.',
-    short: 'Origineel antwoorden = dieper duiken.',
-    genres: ['Woorden', 'Dagelijks', 'Party'],
-    facts: ['7 opdrachten', 'Ook Unlimited & Party'],
-    image: 'https://krillion.io/og.png',
-    accent: '#2ee8d8'
-  },
-  'crowdict.com': {
-    name: 'Crowdict',
-    blurb: 'Tien vragen, 30 seconden per antwoord. Raad wat de massa zegt, of kies Rare en zoek het antwoord dat bijna niemand geeft.',
-    short: 'Raad wat de massa zegt — of juist niet.',
-    genres: ['Trivia', 'Dagelijks', 'Party'],
-    facts: ['10 vragen', '30 sec per antwoord'],
-    image: 'https://crowdict.com/images/edition/og-home.png',
-    accent: '#ff8f3d'
-  }
+  'farflung.game': { name: 'Farflung', icon: 'globe', bg: '#0f4f5c', bg2: '#16707f', fg: '#eafcff' },
+  'krillion.io': { name: 'Krillion', icon: 'krill', bg: '#18225e', bg2: '#2b3f9e', fg: '#eef1ff' },
+  'crowdict.com': { name: 'Crowdict', icon: 'crowd', bg: '#ef7a3c', bg2: '#ff9a5c', fg: '#2a1206' }
 };
 
 export const hostOf = (u) => {
@@ -36,3 +12,103 @@ export const hostOf = (u) => {
 };
 
 export const metaFor = (game) => CATALOG[hostOf(game.url)] || null;
+
+// Pixel-art, 16x16. Elk teken is een kleur uit het palet; '.' is leeg.
+export const ICONS = {
+  globe: {
+    pal: { o: '#4cc2ff', O: '#2f8fd6', g: '#7ee08a', G: '#4fb86a', r: '#ff4d5e', w: '#ffffff', k: '#3a1d2a' },
+    rows: [
+      '................',
+      '..........rrr...',
+      '.........rrwrr..',
+      '.....ooooorrrr..',
+      '...oooggooorr...',
+      '..oogggggoook...',
+      '..ogggggoooko...',
+      '.ooggggooooggoo.',
+      '.oooggooooggggO.',
+      '.ooooggoooGgggO.',
+      '.oooooooooGggOO.',
+      '..ooogggoooOOO..',
+      '..oooggggooOOO..',
+      '...ooogggoOO....',
+      '.....OOOOOO.....',
+      '................'
+    ]
+  },
+  krill: {
+    pal: { p: '#ff8a7a', P: '#e2585a', w: '#ffffff', k: '#1a0f2e', a: '#ffc2b5', b: '#9fd8ff', l: '#ffb09f' },
+    rows: [
+      '.............b..',
+      '...........b....',
+      '..............b.',
+      '.a..............',
+      '..a......b......',
+      '...a............',
+      '....ppppp.......',
+      '...pwkppppppp...',
+      '...pppppppppppp.',
+      '....pPpPpPppppp.',
+      '.....PpPpPpppPpp',
+      '......l.l.l..Pp.',
+      '......l.l.l...P.',
+      '................',
+      '..........b.....',
+      '.....b..........'
+    ]
+  },
+  crowd: {
+    pal: { w: '#fff6e8', k: '#2a1206', A: '#ffd23d', a: '#c98d00', B: '#7b4dff', b: '#4d2bc2', C: '#2ee8d8', c: '#13a397' },
+    rows: [
+      '....wwwwwwww....',
+      '...wwwkkkwwww...',
+      '...wwwwwwkwww...',
+      '...wwwwwkkwww...',
+      '...wwwwwkwwww...',
+      '....wwwwwwww....',
+      '......ww........',
+      '.......BB.......',
+      '..AA..BBBB..CC..',
+      '.AAAA.BBBB.CCCC.',
+      '.AAAA..BB..CCCC.',
+      '..AA..bbbb..CC..',
+      '.aaaabbbbbbcccc.',
+      'aaaaaabbbbcccccc',
+      'aaaaaabbbbcccccc',
+      'aaaaaabbbbcccccc'
+    ]
+  },
+  joystick: {
+    pal: { r: '#ff4d5e', w: '#ffffff', s: '#c9c3e0', x: 'var(--acc)', X: 'var(--acc2)', g: '#3dffa0', t: '#2ee8d8' },
+    rows: [
+      '................',
+      '......rrrr......',
+      '.....rrwwrr.....',
+      '.....rrwrrr.....',
+      '.....rrrrrr.....',
+      '......rrrr......',
+      '.......ss.......',
+      '.......ss.......',
+      '.......ss.......',
+      '.......ss.......',
+      '..xxxxxxxxxxxx..',
+      '.xxggxxxxxxttxx.',
+      '.xxggxxxxxxttxx.',
+      '.XXXXXXXXXXXXXX.',
+      '..XXXXXXXXXXXX..',
+      '................'
+    ]
+  }
+};
+
+export const pixelSvg = (name) => {
+  const icon = ICONS[name] || ICONS.joystick;
+  let out = '';
+  icon.rows.forEach((row, y) => {
+    for (let x = 0; x < 16; x++) {
+      const c = row[x];
+      if (c && c !== '.' && icon.pal[c]) out += `<rect x="${x}" y="${y}" width="1" height="1" style="fill:${icon.pal[c]}"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">${out}</svg>`;
+};
