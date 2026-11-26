@@ -23,7 +23,7 @@ const play = async (url) => {
   }
 };
 
-import { metaFor, artSvg, faviconFor } from './catalog.js';
+import { metaFor, faviconFor } from './catalog.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -50,7 +50,7 @@ let games = load();
 }
 
 const PKEY = 'quickplay-prefs';
-const TINTS = ['#8a63ff', '#ff6fa8', '#3dffa0', '#4a9dff', '#ffb547', '#2ee8d8'];
+const TINTS = ['#e9e1ff', '#ffe1ec', '#dcf7e9', '#dfeaff', '#fff0d6', '#d9f6f4'];
 const $ = (id) => document.getElementById(id);
 const app = $('app'), grid = $('grid'), editBtn = $('edit'), sortSel = $('sort'), hint = $('hint');
 const dlg = $('dlg'), form = $('form'), fname = $('fname'), furl = $('furl'), err = $('err');
@@ -66,12 +66,14 @@ const GRIP = '<svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><c
 
 const card = (g, i) => {
   const m = metaFor(g);
-  const tint = m ? m.tint : TINTS[hash(g.name + g.url) % TINTS.length];
-  const art = m ? artSvg(m.art)
-    : `<img src="${esc(faviconFor(g))}" alt="" loading="lazy" data-ini="${esc((g.name.trim()[0] || '?').toUpperCase())}">`;
-  return `<div class="card" role="button" tabindex="0" style="--tint:${tint}" data-idx="${i}" aria-label="Speel ${esc(g.name)}">`
+  const bg = m ? m.bg : TINTS[hash(g.name + g.url) % TINTS.length];
+  const ini = esc((g.name.trim()[0] || '?').toUpperCase());
+  const img = m
+    ? `<img class="${m.fit}" src="${esc(m.image)}" alt="" loading="lazy" decoding="async" data-ini="${ini}">`
+    : `<img class="icon" src="${esc(faviconFor(g))}" alt="" loading="lazy" data-ini="${ini}">`;
+  return `<div class="card" role="button" tabindex="0" data-idx="${i}" aria-label="Speel ${esc(g.name)}">`
     + `<button class="del" type="button" data-del="${i}" aria-label="Verwijder ${esc(g.name)}">×</button>`
-    + `<div class="art">${art}</div><span class="name">${esc(g.name)}</span>`
+    + `<div class="art" style="--pbg:${bg}">${img}</div><span class="name">${esc(g.name)}</span>`
     + `<span class="grip" data-grip aria-label="Versleep ${esc(g.name)}">${GRIP}</span></div>`;
 };
 

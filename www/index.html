@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#14172a">
+<meta name="theme-color" content="#efe9ff">
 <title>Quickplay</title>
 <style>
 /*
-VOICE: rustig, speels, verzorgd — een collectie kleine, originele games
-IDEA: één familie kaarten; elk spel heeft zijn eigen mascotte als gezicht
-PICTURE: de illustraties per spel, als kleuraccent in identieke kaarten
-COLOUR and TYPE: nachtblauw, kaarten één tint lichter, groen accent voor bediening; Rubik
+VOICE: licht, vrolijk, verzorgd — een collectie kleine games
+IDEA: één familie witte kaarten; elk spel toont zijn eigen preview
+PICTURE: de preview-afbeelding van elke site, op de eigen themakleur van het spel
+COLOUR and TYPE: zacht lila achtergrond, witte kaarten, groen accent voor bediening; Rubik
 LAYOUT: kleine header, subtiele balk met sorteren en weergave, dan raster of lijst
 */
 @font-face{font-family:Rubik;src:url(fonts/rubik-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
 @font-face{font-family:Rubik;src:url(fonts/rubik-latin-600-normal.woff2) format('woff2');font-weight:600;font-display:swap}
 @font-face{font-family:Rubik;src:url(fonts/rubik-latin-800-normal.woff2) format('woff2');font-weight:800;font-display:swap}
-:root{color-scheme:dark;--bg:#14172a;--card:#1c2040;--well:#232851;--edge:#2c3260;--ink:#eef0fa;--mute:#9aa0c4;--green:#3dffa0}
+:root{color-scheme:light;--bg:#efe9ff;--card:#ffffff;--well:#f4f1fb;--edge:#ddd4f5;--ink:#211a3d;--mute:#6f6790;--green:#14b86f;--greenbg:#3dffa0}
 *{box-sizing:border-box;min-width:0}
 html{-webkit-tap-highlight-color:transparent}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Rubik,system-ui,sans-serif;overflow-x:clip}
+body{margin:0;background:var(--bg);background-image:radial-gradient(900px 420px at 100% 0,#ffe3ee 0,transparent 60%),radial-gradient(800px 420px at 0 100%,#ddf7ec 0,transparent 60%);background-attachment:fixed;color:var(--ink);font:16px/1.5 Rubik,system-ui,sans-serif;overflow-x:clip}
 .wrap{max-width:980px;margin:0 auto;padding:0 max(5vw,16px)}
-:focus-visible{outline:3px solid var(--green);outline-offset:3px}
+:focus-visible{outline:3px solid #7b4dff;outline-offset:3px}
 button,select{font:inherit;color:inherit}
 
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(22px + env(safe-area-inset-top)) 0 6px}
@@ -38,39 +38,38 @@ background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-g
 .sort select option{background:var(--card);color:var(--ink)}
 .views{display:flex;background:var(--card);border:1px solid var(--edge);border-radius:10px;padding:3px;gap:2px}
 .views button{width:40px;height:36px;border:0;border-radius:7px;background:transparent;color:var(--mute);cursor:pointer;display:grid;place-items:center}
-.views button[aria-pressed=true]{background:var(--well);color:var(--green)}
+.views button[aria-pressed=true]{background:var(--greenbg);color:#0b2a1c}
 .views svg{width:16px;height:16px}
 .hint{color:var(--mute);font-size:13px;margin:-6px 0 12px}
 
 /* Kaarten: één stijl voor alle spellen */
 .list{display:grid;gap:12px;padding-bottom:calc(32px + env(safe-area-inset-bottom));grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr))}
-.card{position:relative;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:10px;cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .14s ease,border-color .14s ease}
-@media(hover:hover){.card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--tint) 55%,var(--edge))}}
+.card{position:relative;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:8px;box-shadow:0 6px 16px -12px rgba(60,40,120,.45);cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .14s ease,border-color .14s ease}
+@media(hover:hover){.card:hover{transform:translateY(-2px);border-color:#bfb0ee;box-shadow:0 12px 22px -12px rgba(60,40,120,.5)}}
 .card:active{transform:scale(.985)}
-.art{position:relative;aspect-ratio:1.15;border-radius:10px;background:var(--well);display:grid;place-items:center;overflow:hidden}
-.art::before{content:"";position:absolute;inset:0;background:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.3px) 0 0/7px 7px}
-.art::after{content:"";position:absolute;left:18%;right:18%;bottom:12%;height:14%;border-radius:50%;background:var(--tint);opacity:.13;filter:blur(6px)}
-.art svg{position:relative;z-index:1;width:68%;height:68%}
-.art img{position:relative;z-index:1;width:46%;height:46%;object-fit:contain;border-radius:12px}
-.art .ini{position:relative;z-index:1;font:800 34px/1 Rubik,sans-serif;color:var(--tint)}
-.name{display:block;padding:10px 2px 2px;font-weight:600;font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.art{position:relative;aspect-ratio:1.6;border-radius:11px;background:var(--pbg);overflow:hidden;display:grid;place-items:center}
+.art img{position:absolute;inset:0;width:100%;height:100%;display:block}
+.art img.cover{object-fit:cover}
+.art img.contain{object-fit:contain;padding:9%}
+.art img.icon{position:static;width:38%;height:auto;aspect-ratio:1;object-fit:contain;border-radius:10px}
+.art .ini{font:800 34px/1 Rubik,sans-serif;color:#fff;mix-blend-mode:difference;opacity:.8}
+.name{display:block;padding:9px 4px 3px;font-weight:600;font-size:16px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .grip{display:none}
 
 /* Lijstweergave: volle breedte, illustratie links, naam rechts */
 .is-list .list{grid-template-columns:1fr;gap:10px}
-.is-list .card{flex-direction:row;align-items:center;gap:16px;padding:10px}
-.is-list .art{flex:0 0 84px;width:84px;aspect-ratio:1}
-.is-list .art svg{width:74%;height:74%}
+.is-list .card{flex-direction:row;align-items:center;gap:16px;padding:8px}
+.is-list .art{flex:0 0 136px;width:136px}
 .is-list .name{flex:1;padding:0;font-size:19px}
 
 /* Eigen volgorde: sleepgreep */
-.manual .grip{display:grid;place-items:center;position:absolute;top:6px;right:6px;z-index:2;width:44px;height:44px;border-radius:10px;color:var(--mute);touch-action:none;cursor:grab;background:rgba(20,23,42,.55)}
-.is-list.manual .grip{position:static;flex:none;background:transparent}
+.manual .grip{display:grid;place-items:center;position:absolute;top:6px;right:6px;z-index:2;width:44px;height:44px;border-radius:10px;color:var(--mute);touch-action:none;cursor:grab;background:rgba(255,255,255,.88);box-shadow:0 2px 6px rgba(40,20,90,.2)}
+.is-list.manual .grip{position:static;flex:none;background:transparent;box-shadow:none}
 .grip svg{width:18px;height:18px}
-.card.dragging{z-index:10;cursor:grabbing;transition:none;border-color:var(--green);box-shadow:0 18px 30px -12px rgba(0,0,0,.8)}
+.card.dragging{z-index:10;cursor:grabbing;transition:none;border-color:var(--green);box-shadow:0 20px 34px -14px rgba(60,40,120,.6)}
 .card.dragging .grip{cursor:grabbing;color:var(--green)}
 
-.add{border:2px dashed var(--edge);border-radius:14px;background:transparent;color:var(--mute);cursor:pointer;min-height:84px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:15px;padding:12px}
+.add{border:2px dashed #c9bdf0;border-radius:14px;background:transparent;color:var(--mute);cursor:pointer;min-height:84px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:15px;padding:12px}
 .add span{font-size:28px;line-height:1;color:var(--green)}
 .add:hover{border-color:var(--green);color:var(--ink)}
 .del{position:absolute;top:6px;left:6px;z-index:3;width:40px;height:40px;border-radius:10px;border:0;background:#ff4d5e;color:#fff;font-weight:600;font-size:20px;cursor:pointer;display:none}
@@ -80,21 +79,21 @@ background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-g
 @media(prefers-reduced-motion:reduce){.card{transition:none}}
 
 dialog{border:0;border-radius:16px;padding:22px;width:min(400px,92vw);background:var(--card);color:var(--ink)}
-dialog::backdrop{background:rgba(6,8,20,.7)}
+dialog::backdrop{background:rgba(33,26,61,.45)}
 dialog h2{margin:0 0 6px;font-weight:600;font-size:22px}
 label{display:block;font-weight:600;margin-top:12px;font-size:15px}
-input{width:100%;min-height:48px;font:16px Rubik,sans-serif;padding:8px 12px;border-radius:10px;border:2px solid var(--edge);background:var(--bg);color:var(--ink);margin-top:4px}
+input{width:100%;min-height:48px;font:16px Rubik,sans-serif;padding:8px 12px;border-radius:10px;border:2px solid var(--edge);background:var(--well);color:var(--ink);margin-top:4px}
 input:focus{outline:none;border-color:var(--green)}
-.err{color:#ff7a88;font-size:14px;min-height:20px;margin:6px 0 0}
+.err{color:#d6284a;font-size:14px;min-height:20px;margin:6px 0 0}
 .btns{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
 .btn{min-height:44px;padding:0 16px;border-radius:10px;border:2px solid var(--edge);background:transparent;font-weight:600;font-size:15px;cursor:pointer}
-.btn.on{background:var(--green);border-color:var(--green);color:#06140d}
+.btn.on{background:var(--greenbg);border-color:var(--greenbg);color:#0b2a1c}
 </style>
 </head>
 <body>
 <div class="wrap" id="app">
   <header>
-    <h1 class="logo"><svg viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="#3dffa0"/><path d="M12 9.5v11l9-5.5z" fill="#14172a"/></svg>Quickplay</h1>
+    <h1 class="logo"><svg viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="#3dffa0"/><path d="M12 9.5v11l9-5.5z" fill="#211a3d"/></svg>Quickplay</h1>
     <button class="edit" id="edit" type="button" aria-pressed="false">Bewerken</button>
   </header>
 
