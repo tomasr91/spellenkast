@@ -36,19 +36,19 @@ jobs:
           ./gradlew assembleDebug --no-daemon
 
       - name: APK hernoemen
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Spellenkast.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Quickplay.apk
 
       - name: Bewaren als build-bestand
         uses: actions/upload-artifact@v4
         with:
-          name: Spellenkast-apk
-          path: Spellenkast.apk
+          name: Quickplay-apk
+          path: Quickplay.apk
 
       - name: Publiceren als release "laatste"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete laatste --yes --cleanup-tag || true
-          gh release create laatste Spellenkast.apk \
-            --title "Spellenkast (laatste versie)" \
-            --notes "Automatisch gebouwd uit commit ${GITHUB_SHA::7}. Open deze pagina op je telefoon en tik op Spellenkast.apk om te installeren."
+          gh release create laatste Quickplay.apk \
+            --title "Quickplay (laatste versie)" \
+            --notes "Automatisch gebouwd uit commit ${GITHUB_SHA::7}. Open deze pagina op je telefoon en tik op Quickplay.apk om te installeren."

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Spellenkast</string>
-    <string name="title_activity_main">Spellenkast</string>
+    <string name="app_name">Quickplay</string>
+    <string name="title_activity_main">Quickplay</string>
     <string name="package_name">nl.tomas.spellenkast</string>
     <string name="custom_url_scheme">nl.tomas.spellenkast</string>
 </resources>

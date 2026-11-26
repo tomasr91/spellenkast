@@ -1,13 +1,13 @@
-# Spellenkast
+# Quickplay
 
 Een Android-app om webspelletjes te verzamelen (zoals Farflung en Krillion) en ze ín de app te spelen.
 
 ## Installeren op je telefoon
 
-1. Ga op je telefoon naar **Releases → Spellenkast (laatste versie)** in deze repo.
-2. Tik op `Spellenkast.apk` om hem te downloaden.
+1. Ga op je telefoon naar **Releases → Quickplay (laatste versie)** in deze repo.
+2. Tik op `Quickplay.apk` om hem te downloaden.
 3. Open het bestand. Android vraagt één keer of je browser apps mag installeren: sta dat toe.
-4. Open **Spellenkast**.
+4. Open **Quickplay**.
 
 Bij elke wijziging op `main` bouwt GitHub Actions automatisch een nieuwe APK. Installeer die gewoon over de oude heen; je spellenlijst blijft bewaard.
 

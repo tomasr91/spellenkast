@@ -105,7 +105,7 @@ form.addEventListener('submit', (e) => {
   if (!name) { err.textContent = 'Geef het spel een naam.'; return; }
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   try { const u = new URL(url); if (!u.hostname.includes('.')) throw 0; } catch (x) { err.textContent = 'Dat lijkt geen geldig webadres.'; return; }
-  if (games.some((g) => g.url.replace(/\/$/, '') === url.replace(/\/$/, ''))) { err.textContent = 'Dit spel staat al in je kast.'; return; }
+  if (games.some((g) => g.url.replace(/\/$/, '') === url.replace(/\/$/, ''))) { err.textContent = 'Dit spel staat al in je lijst.'; return; }
   games.push({ name, url });
   save(); render(); dlg.close();
 });
