@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { InAppBrowser, DefaultWebViewOptions, DefaultAndroidWebViewOptions } from '@capacitor/inappbrowser';
 
 const play = async (url) => {
@@ -281,13 +281,13 @@ $('who').addEventListener('click', () => openSetup());
 $('prevDay').addEventListener('click', () => { viewDay = shiftDay(viewDay, -1); showBoard(); });
 nextDay.addEventListener('click', () => { if (viewDay < dayStr()) { viewDay = shiftDay(viewDay, 1); showBoard(); } });
 
-const openScore = (g) => {
+const openScore = (g, shared) => {
   const go = () => {
     sgame.innerHTML = games.map((x, i) => `<option value="${i}">${esc(x.name)}</option>`).join('');
     if (g) sgame.value = String(games.indexOf(g));
     stext.value = ''; sval.value = ''; scoreErr.textContent = '';
-    scoreDlg.showModal();
-    tryPaste(true);
+    if (!scoreDlg.open) scoreDlg.showModal();
+    if (shared) { stext.value = shared.trim(); fillFromText(); } else tryPaste(true);
   };
   if (!getProfile()) openSetup(go); else go();
 };
@@ -342,6 +342,24 @@ const offerScore = () => {
   toastTimer = setTimeout(hideToast, 15000);
 };
 $('toastX').addEventListener('click', hideToast);
+
+// Gedeeld via het Android-deelmenu (Delen → Quickplay): meteen het venster Score toevoegen openen.
+if (Capacitor.isNativePlatform()) {
+  const ShareReceiver = registerPlugin('ShareReceiver');
+  let lastShared = '', lastAt = 0;
+  const onShared = (text) => {
+    if (!text || !text.trim()) return;
+    if (text === lastShared && Date.now() - lastAt < 5000) return; // niet dubbel
+    lastShared = text; lastAt = Date.now();
+    hideToast(); lastGame = null;
+    if (setupDlg.open) setupDlg.close();
+    openScore(null, text);
+  };
+  try {
+    ShareReceiver.addListener('shared', (d) => onShared(d && d.text));
+    ShareReceiver.getShared().then((r) => onShared(r && r.text)).catch(() => {});
+  } catch (e) {}
+}
 try { InAppBrowser.addListener('browserClosed', () => setTimeout(offerScore, 300)); } catch (e) {}
 document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(offerScore, 300); });
 window.addEventListener('focus', () => setTimeout(offerScore, 300));
