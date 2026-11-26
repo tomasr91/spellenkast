@@ -232,11 +232,22 @@ setupForm.addEventListener('submit', (e) => {
   if (f) f(); else if (!board.hidden) showBoard();
 });
 
+const setTab = (tab) => {
+  document.querySelectorAll('[data-tab]').forEach((b) => {
+    if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  const scores = tab === 'scores';
+  grid.hidden = scores; board.hidden = !scores;
+  editBtn.hidden = scores; $('who').hidden = !scores;
+  if (scores && editing) { editing = false; editBtn.textContent = 'Bewerken'; editBtn.setAttribute('aria-pressed', false); render(); }
+  window.scrollTo(0, 0);
+};
+
 const showBoard = async () => {
+  setTab('scores');
   const p = getProfile();
-  if (!p) { openSetup(showBoard); return; }
-  grid.hidden = true; board.hidden = false;
-  $('who').textContent = `${p.name} · ${p.group}`;
+  $('who').textContent = p ? `${p.name} · ${p.group}` : 'Instellen';
+  if (!p) { boardList.innerHTML = '<p class="msg">Stel eerst je naam en groepscode in om scores met je vriend te delen.</p>'; openSetup(showBoard); return; }
   dayLabel.textContent = dayName(viewDay);
   nextDay.disabled = viewDay >= dayStr();
   boardList.innerHTML = '<p class="msg">Scores ophalen…</p>';
@@ -259,10 +270,13 @@ const showBoard = async () => {
       + '</div>';
   }).join('');
 };
-const showGames = () => { board.hidden = true; grid.hidden = false; };
+const showGames = () => setTab('games');
 
-$('scoresBtn').addEventListener('click', () => { viewDay = dayStr(); showBoard(); });
-$('back').addEventListener('click', showGames);
+document.querySelector('.tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tab]');
+  if (!b) return;
+  if (b.dataset.tab === 'scores') { viewDay = dayStr(); showBoard(); } else showGames();
+});
 $('who').addEventListener('click', () => openSetup());
 $('prevDay').addEventListener('click', () => { viewDay = shiftDay(viewDay, -1); showBoard(); });
 nextDay.addEventListener('click', () => { if (viewDay < dayStr()) { viewDay = shiftDay(viewDay, 1); showBoard(); } });
