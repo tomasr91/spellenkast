@@ -49,7 +49,7 @@ let games = load();
   save();
 }
 
-const TINTS = ['#e9e1ff', '#ffe1ec', '#dcf7e9', '#dfeaff', '#fff0d6', '#d9f6f4'];
+const TINTS = ['#f3e2b8', '#d5efe4', '#e6dcef', '#f6dcc4', '#dbe7d2', '#efe3d0'];
 const $ = (id) => document.getElementById(id);
 const app = $('app'), grid = $('grid'), editBtn = $('edit');
 const dlg = $('dlg'), form = $('form'), fname = $('fname'), furl = $('furl'), err = $('err');
