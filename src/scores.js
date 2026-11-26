@@ -1,8 +1,8 @@
 // Scores delen met vrienden via Supabase (REST, zonder extra bibliotheek).
 // De publishable key is bedoeld om in een app te staan; Row Level Security in de database bepaalt wat mag.
 
-const SUPABASE_URL = 'https://vpegogzuwrapfouezjrw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_M9NllIEPM12NwLYeH2V90w_qskFvbTc';
+const SUPABASE_URL = 'https://kzioyxkstqxspjuugwdc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_1iqQx5Aopd4v2GY_Aes_5A_fAPwmy-3';
 const PROFILE_KEY = 'quickplay-profile';
 
 const headers = (extra = {}) => ({ apikey: SUPABASE_KEY, 'Content-Type': 'application/json', ...extra });
