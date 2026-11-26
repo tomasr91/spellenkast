@@ -23,7 +23,7 @@ const play = async (url) => {
   }
 };
 
-import { metaFor, pixelSvg } from './catalog.js';
+import { metaFor, faviconFor } from './catalog.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -49,7 +49,7 @@ let games = load();
   save();
 }
 
-const ACCENTS = [['#5a35d0', '#7b4dff', '#3a2290'], ['#b8325a', '#e2507a', '#7d1d3c'], ['#1f7a52', '#2fa56f', '#12543a'], ['#2a5bd7', '#4a7dff', '#1a3c96'], ['#a8661a', '#d68a2a', '#6e3f0c']];
+const COLORS = ['#5a35d0', '#c43d6b', '#1f7a52', '#2a5bd7', '#b8701e', '#0f7c86'];
 const $ = (id) => document.getElementById(id);
 const grid = $('grid'), editBtn = $('edit'), dlg = $('dlg'), form = $('form'), fname = $('fname'), furl = $('furl'), err = $('err');
 let editing = false;
@@ -59,18 +59,25 @@ const hash = (s) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt
 
 const tile = (g, i) => {
   const m = metaFor(g);
-  let style, icon;
-  if (m) {
-    style = `--bg1:${m.bg};--bg2:${m.bg2};--fg:${m.fg}`;
-    icon = pixelSvg(m.icon);
-  } else {
-    const [a, b, c] = ACCENTS[hash(g.name + g.url) % ACCENTS.length];
-    style = `--bg1:${c};--bg2:${a};--fg:#ffffff;--acc:${b};--acc2:${c}`;
-    icon = pixelSvg('joystick');
-  }
-  return `<div class="tile" role="button" tabindex="0" style="${style}" data-open="${i}" aria-label="Speel ${esc(g.name)}">${icon}<b>${esc(g.name)}</b>`
+  const bg = m ? m.bg : COLORS[hash(g.name + g.url) % COLORS.length];
+  const fg = m ? m.fg : '#ffffff';
+  const fit = m ? m.fit : 'icon';
+  const src = m ? m.image : faviconFor(g);
+  const initial = esc((g.name.trim()[0] || '?').toUpperCase());
+  return `<div class="tile" role="button" tabindex="0" style="--bg:${bg};--fg:${fg}" data-open="${i}" aria-label="Speel ${esc(g.name)}">`
+    + `<div class="pic ${fit}" data-initial="${initial}"><img src="${esc(src)}" alt="" loading="lazy" decoding="async"></div>`
+    + `<b>${esc(g.name)}</b>`
     + `<button class="del" type="button" data-del="${i}" aria-label="Verwijder ${esc(g.name)}">×</button></div>`;
 };
+
+// Afbeelding laadt niet (offline, of site zonder icoon): toon de eerste letter.
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (img.tagName === 'IMG' && img.parentElement && img.parentElement.classList.contains('pic')) {
+    img.parentElement.classList.add('fallback');
+    img.remove();
+  }
+}, true);
 
 const render = () => {
   grid.classList.toggle('editing', editing);
