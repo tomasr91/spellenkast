@@ -1,0 +1,56 @@
+name: Android-app bouwen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Web-deel bouwen en naar Android kopiëren
+        run: |
+          npm ci
+          npm run sync
+
+      - name: APK bouwen
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: APK hernoemen
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Spellenkast.apk
+
+      - name: Bewaren als build-bestand
+        uses: actions/upload-artifact@v4
+        with:
+          name: Spellenkast-apk
+          path: Spellenkast.apk
+
+      - name: Publiceren als release "laatste"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete laatste --yes --cleanup-tag || true
+          gh release create laatste Spellenkast.apk \
+            --title "Spellenkast (laatste versie)" \
+            --notes "Automatisch gebouwd uit commit ${GITHUB_SHA::7}. Open deze pagina op je telefoon en tik op Spellenkast.apk om te installeren."

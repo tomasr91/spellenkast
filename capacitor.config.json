@@ -1,0 +1,6 @@
+{
+  "appId": "nl.tomas.spellenkast",
+  "appName": "Spellenkast",
+  "webDir": "www",
+  "android": { "backgroundColor": "#16112a" }
+}

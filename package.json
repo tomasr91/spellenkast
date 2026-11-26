@@ -1,0 +1,19 @@
+{
+  "name": "spellenkast",
+  "version": "1.0.0",
+  "description": "Mijn spellenkast: webspelletjes verzamelen en in de app spelen",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --minify --format=iife --outfile=www/app.js",
+    "sync": "npm run build && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.3",
+    "@capacitor/cli": "^8.6.3",
+    "@capacitor/core": "^8.6.3",
+    "@capacitor/inappbrowser": "^4.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "private": true
+}

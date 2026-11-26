@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mijn spellenkast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: speels, warm, als een speelhal na sluitingstijd
+IDEA: een kast vol spelcassettes; elk spel is een cassette met eigen kleur
+PICTURE: de cassettes zelf, groot, met een gloeiend label en een geometrisch motief
+COLOUR and TYPE: diep inktpaars, cassettes in eigen kleuren, citroengeel accent; Rubik
+LAYOUT: korte kop, dan meteen het rooster van cassettes, toevoegen-knop als lege cassette
+*/
+:root{color-scheme:light dark;--bg:light-dark(#f4f1fb,#16112a);--shelf:light-dark(#e3dcf5,#221a3d);--ink:light-dark(#1c1530,#f3effc);--mute:light-dark(#5d5478,#b3a9cf);--acc:#ffd83d;--line:light-dark(#cfc4ec,#3a2f5e)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Rubik,system-ui,sans-serif;overflow-x:clip}
+.band{padding:calc(clamp(24px,4vw,56px) + env(safe-area-inset-top)) max(5vw,16px) calc(clamp(24px,4vw,56px) + env(safe-area-inset-bottom));max-width:1240px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px;padding-bottom:8px}
+h1{font-size:clamp(32px,6vw,48px);line-height:1.05;margin:0;font-weight:800;text-wrap:balance}
+.sub{margin:6px 0 0;color:var(--mute)}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:22px;padding:24px;background:var(--shelf);border-radius:22px;margin-top:20px}
+.cart{position:relative;display:flex;flex-direction:column;border-radius:16px 16px 10px 10px;background:var(--c);color:#14102a;text-decoration:none;box-shadow:0 10px 0 -2px rgba(0,0,0,.25),0 18px 30px -12px rgba(0,0,0,.45);transition:transform .2s;overflow:hidden;min-height:260px}
+.cart:hover,.cart:focus-visible{transform:translateY(-6px)}
+.cart:focus-visible{outline:3px solid var(--acc);outline-offset:4px}
+.art{flex:1;min-height:150px;position:relative}
+.art svg{position:absolute;inset:0;width:100%;height:100%}
+.label{background:#fffdf5;margin:0 12px 12px;border-radius:8px;padding:10px 12px}
+.label b{display:block;font-size:20px;line-height:1.15;overflow-wrap:anywhere}
+.label span{font-size:13px;color:#4c4466;overflow-wrap:anywhere}
+.grip{height:10px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.18) 0 6px,transparent 6px 12px);margin:0 30px 10px;border-radius:3px}
+.del{position:absolute;top:8px;right:8px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(20,16,42,.55);color:#fff;font:600 20px Rubik,sans-serif;cursor:pointer;display:none}
+.editing .del{display:block}
+.editing .cart{animation:wob .35s ease-in-out infinite alternate}
+@keyframes wob{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
+@media(prefers-reduced-motion:reduce){.cart{transition:none}.editing .cart{animation:none}}
+.add{border:3px dashed var(--line);border-radius:16px;background:transparent;color:var(--mute);font:600 18px Rubik,sans-serif;min-height:260px;cursor:pointer;display:grid;place-items:center;gap:6px;padding:16px}
+.add:hover,.add:focus-visible{border-color:var(--acc);color:var(--ink);outline:none}
+.add i{font-style:normal;font-size:44px;line-height:1}
+.btn{min-height:44px;padding:0 18px;border-radius:999px;border:2px solid var(--line);background:transparent;color:var(--ink);font:600 15px Rubik,sans-serif;cursor:pointer}
+.btn.on{background:var(--acc);border-color:var(--acc);color:#14102a}
+.btn:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+dialog{border:0;border-radius:20px;padding:24px;width:min(420px,92vw);background:var(--bg);color:var(--ink);box-shadow:0 30px 60px rgba(0,0,0,.4)}
+dialog::backdrop{background:rgba(10,6,25,.6)}
+dialog h2{margin:0 0 14px;font-size:24px}
+label{display:block;font-weight:600;margin-top:12px}
+input{width:100%;min-height:44px;font:16px Rubik,sans-serif;padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--shelf);color:var(--ink);margin-top:4px}
+input:focus{outline:none;border-color:var(--acc)}
+.row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.err{color:#e2445c;font-size:14px;min-height:20px;margin:6px 0 0}
+.note{color:var(--mute);font-size:14px;margin-top:18px}
+</style>
+</head>
+<body>
+<main class="band">
+  <header>
+    <div>
+      <h1>Mijn spellenkast</h1>
+      <p class="sub">Tik op een cassette om te spelen.</p>
+    </div>
+    <button class="btn" id="edit" type="button">Bewerken</button>
+  </header>
+  <section class="shelf" id="shelf" aria-label="Spellen"></section>
+  <p class="note">Tik op ‘Bewerken’ om spellen te verwijderen. Je lijst wordt bewaard op dit toestel.</p>
+</main>
+
+<dialog id="dlg">
+  <form id="form" novalidate>
+    <h2>Spel toevoegen</h2>
+    <label for="fname">Naam</label>
+    <input id="fname" autocomplete="off" placeholder="Bijvoorbeeld Slither">
+    <label for="furl">Webadres</label>
+    <input id="furl" inputmode="url" autocomplete="off" placeholder="spel.io">
+    <p class="err" id="err"></p>
+    <div class="row">
+      <button class="btn" type="button" id="cancel">Annuleren</button>
+      <button class="btn on" type="submit">Toevoegen</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
