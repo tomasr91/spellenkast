@@ -23,7 +23,8 @@ const KEY='spellenkast-v1';
 const COLORS=['#ff8a5c','#5ce1e6','#b28dff','#7be08a','#ffd83d','#ff6fa8','#6fa8ff'];
 const DEFAULT=[
   {name:'Farflung',url:'https://farflung.game'},
-  {name:'Krillion',url:'https://krillion.io'}
+  {name:'Krillion',url:'https://krillion.io'},
+  {name:'Crowdict',url:'https://crowdict.com'}
 ];
 const shelf=document.getElementById('shelf');
 const dlg=document.getElementById('dlg');
@@ -37,6 +38,18 @@ let editing=false;
 const load=()=>{try{const v=JSON.parse(localStorage.getItem(KEY));if(Array.isArray(v))return v}catch(e){}return DEFAULT.slice()};
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(games))}catch(e){}};
 let games=load();
+// Nieuwe standaardspellen ook toevoegen aan een bestaande lijst, maar nooit een spel terugzetten dat je zelf hebt verwijderd.
+{
+  const SEEN='spellenkast-seen-defaults';
+  let seen;
+  try{seen=JSON.parse(localStorage.getItem(SEEN))}catch(e){}
+  if(!Array.isArray(seen))seen=localStorage.getItem(KEY)?['https://farflung.game','https://krillion.io']:[];
+  for(const d of DEFAULT){
+    if(!seen.includes(d.url)){if(!games.some(g=>g.url===d.url))games.push({...d});seen.push(d.url)}
+  }
+  try{localStorage.setItem(SEEN,JSON.stringify(seen))}catch(e){}
+  save();
+}
 
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hash=s=>{let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))>>>0;return h};
