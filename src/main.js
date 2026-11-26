@@ -11,7 +11,11 @@ const play = async (url) => {
         showURL: false,
         showNavigationButtons: false,
         closeButtonText: 'Terug',
-        android: { ...DefaultAndroidWebViewOptions, hardwareBack: true, pauseMedia: true }
+        // Logins en voortgang bewaren tussen sessies (standaard wist de plugin cookies en cache bij elke start).
+        clearCache: false,
+        clearSessionCache: false,
+        // In het app-proces draaien, zodat cookies netjes worden weggeschreven als je het spel sluit.
+        android: { ...DefaultAndroidWebViewOptions, hardwareBack: true, pauseMedia: true, isIsolated: false }
       }
     });
   } catch (err) {
