@@ -4,7 +4,8 @@
 export const CATALOG = {
   'farflung.game': { name: 'Farflung', icon: 'globe', bg: '#0f4f5c', bg2: '#16707f', fg: '#eafcff' },
   'krillion.io': { name: 'Krillion', icon: 'krill', bg: '#18225e', bg2: '#2b3f9e', fg: '#eef1ff' },
-  'crowdict.com': { name: 'Crowdict', icon: 'crowd', bg: '#ef7a3c', bg2: '#ff9a5c', fg: '#2a1206' }
+  'crowdict.com': { name: 'Crowdict', icon: 'crowd', bg: '#ef7a3c', bg2: '#ff9a5c', fg: '#2a1206' },
+  'chainle.io': { name: 'Chainle', icon: 'chain', bg: '#2c6a4c', bg2: '#3f8f66', fg: '#f2fff7' }
 };
 
 export const hostOf = (u) => {
@@ -76,6 +77,27 @@ export const ICONS = {
       'aaaaaabbbbcccccc',
       'aaaaaabbbbcccccc',
       'aaaaaabbbbcccccc'
+    ]
+  },
+  chain: {
+    pal: { s: '#dfe6ee', w: '#ffffff', S: '#9fb0c2', W: '#c9d6e3' },
+    rows: [
+      '................',
+      '................',
+      '.wwwwwwww.......',
+      'ssssssssss......',
+      'ss......ss......',
+      'ss.....WssWWWWW.',
+      'ss....SSssSSSSSS',
+      'ss....SSss....SS',
+      'ssssssSSss....SS',
+      '.sssssSSs.....SS',
+      '......SS......SS',
+      '......SSSSSSSSSS',
+      '.......SSSSSSSS.',
+      '................',
+      '................',
+      '................'
     ]
   },
   joystick: {

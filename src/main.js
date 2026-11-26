@@ -29,7 +29,8 @@ const KEY = 'spellenkast-v1';
 const DEFAULT = [
   { name: 'Farflung', url: 'https://farflung.game' },
   { name: 'Krillion', url: 'https://krillion.io' },
-  { name: 'Crowdict', url: 'https://crowdict.com' }
+  { name: 'Crowdict', url: 'https://crowdict.com' },
+  { name: 'Chainle', url: 'https://chainle.io' }
 ];
 
 const load = () => { try { const v = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(v)) return v; } catch (e) {} return DEFAULT.slice(); };
