@@ -95,33 +95,44 @@ const cardStats = (g) => {
     .sort((a, b) => Number(b.score) - Number(a.score)).slice(0, 2);
   const best = top.length > 1 ? Number(top[0].score) : null;
   if (!top.length) return '';
-  const parts = top.map((r) => `<span class="${Number(r.score) === best ? 'win' : ''}">${esc(r.player)} ${nf(r.score)}${Number(r.score) === best ? ' ★' : ''}</span>`);
-  return `<span class="stats">${parts.join(' · ')}</span>`;
+  return '<span class="stats">' + top.map((r) => `<span class="ts${Number(r.score) === best ? ' win' : ''}"><b>${esc(r.player)}</b><i>${nf(r.score)}</i></span>`).join('') + '</span>';
 };
 
 // Dagscore: per spel score / max × 100 (max 100 per spel), opgeteld over alle spellen met een max.
+const TROPHY = '<svg class="cup" viewBox="0 0 24 24" aria-label="winnaar"><path d="M7 3h10v2h3v3a4 4 0 0 1-4 4h-.3A5 5 0 0 1 13 14.9V17h3v3H8v-3h3v-2.1A5 5 0 0 1 8.3 12H8a4 4 0 0 1-4-4V5h3V3zm0 4H6v1a2 2 0 0 0 1 1.7V7zm10 0v2.7A2 2 0 0 0 18 8V7h-1z"/></svg>';
+
+// Dagscore: per spel score / max × 100 (max 100 per spel), opgeteld over alle spellen met een max.
+// Klaar = iedereen die vandaag meedoet heeft alle spellen met een max gespeeld.
 const dayScores = () => {
   const p = getProfile();
-  const per = {};
+  const scored = games.filter((g) => { const m = metaFor(g); return m && m.max; });
+  const per = {}, played = {};
   todayRows().forEach((r) => {
-    const g = games.find((x) => gameKey(x) === r.game);
-    const m = g && metaFor(g);
-    if (!m || !m.max || r.score === null || r.score === undefined) return;
-    per[r.player] = (per[r.player] || 0) + Math.min(Number(r.score) / m.max, 1) * 100;
+    const g = scored.find((x) => gameKey(x) === r.game);
+    if (!g || r.score === null || r.score === undefined) return;
+    per[r.player] = (per[r.player] || 0) + Math.min(Number(r.score) / metaFor(g).max, 1) * 100;
+    (played[r.player] = played[r.player] || new Set()).add(r.game);
   });
   if (p && Object.keys(per).length && !(p.name in per)) per[p.name] = 0;
-  return Object.entries(per).map(([name, v]) => ({ name, score: Math.round(v) })).sort((a, b) => b.score - a.score);
+  const list = Object.entries(per).map(([name, v]) => ({ name, score: Math.round(v) })).sort((a, b) => b.score - a.score);
+  const done = list.length > 1 && scored.length > 0 && list.every((x) => (played[x.name] || new Set()).size >= scored.length);
+  return { list, done };
 };
 const renderDayBar = () => {
   const bar = $('daybar');
   const p = getProfile();
   if (!p || editing) { bar.hidden = true; return; }
-  const list = dayScores();
+  const { list, done } = dayScores();
   const top = list.length > 1 ? list[0].score : null;
+  const tie = list.length > 1 && list[0].score === list[1].score;
   bar.hidden = false;
-  bar.innerHTML = '<span class="dl">Dagscore</span> ' + (list.length
-    ? list.map((x) => `<span class="${x.score === top ? 'win' : ''}">${esc(x.name)} ${x.score}${x.score === top ? ' ★' : ''}</span>`).join(' · ')
-    : '<span>nog niemand gespeeld</span>');
+  bar.classList.toggle('final', done);
+  bar.innerHTML = `<span class="dl">${done ? 'Dagscore' : 'Tussenstand'}</span>` + (list.length
+    ? '<div class="dp">' + list.map((x) => {
+        const lead = x.score === top;
+        return `<div class="dpl${lead ? ' win' : ''}"><b>${esc(x.name)}${lead && done && !tie ? ' ' + TROPHY : ''}${lead && !done ? ' <span class="st">★</span>' : ''}</b><i>${x.score}</i></div>`;
+      }).join('') + '</div>'
+    : '<span class="dn">Nog niemand gespeeld vandaag</span>');
 };
 
 const refreshHome = async () => {
