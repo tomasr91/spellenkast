@@ -24,7 +24,7 @@ const play = async (url) => {
 };
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
-import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, loadGroupGames, addGroupGame, removeGroupGame, parseScore, detectGame, isDemo } from './scores.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, loadForm, loadGroupGames, addGroupGame, removeGroupGame, parseScore, detectGame, isDemo } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -374,16 +374,69 @@ const setTab = (tab) => {
   window.scrollTo(0, 0);
 };
 
+// Leaderboards: Records (top 5) of Onderling (duels over een periode). Keuze wordt onthouden.
+let lbView = 'records', lbDays = 30;
+try { const v = JSON.parse(localStorage.getItem('quickplay-lb') || '{}'); if (v.view) lbView = v.view; if (v.days !== undefined) lbDays = v.days; } catch (e) {}
+const saveLb = () => { try { localStorage.setItem('quickplay-lb', JSON.stringify({ view: lbView, days: lbDays })); } catch (e) {} };
+const syncLbControls = () => {
+  document.querySelectorAll('.seg [data-view]').forEach((b) => b.setAttribute('aria-selected', b.dataset.view === lbView));
+  $('periods').hidden = lbView !== 'form';
+  document.querySelectorAll('#periods [data-days]').forEach((b) => b.setAttribute('aria-pressed', Number(b.dataset.days) === lbDays));
+};
+document.querySelector('.seg').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-view]'); if (!b) return;
+  lbView = b.dataset.view; saveLb(); boardList.innerHTML = ''; showBoard();
+});
+$('periods').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-days]'); if (!b) return;
+  lbDays = Number(b.dataset.days); saveLb(); showBoard();
+});
+
+const formTile = (title, rows, me, isDay, wide) => {
+  const list = rows.slice().sort((a, b) => b.wins - a.wins || b.avg_score - a.avg_score);
+  const duels = Math.max(0, ...list.map((r) => r.duels));
+  const lead = list.length > 1 && list[0].wins > list[1].wins ? list[0].player : null;
+  const head = `<h3><span>${esc(title)}</span>${lead ? `<span class="lead">♛ ${esc(lead)}</span>` : ''}</h3>`;
+  const cls = `fm${wide ? ' wide' : ''}`;
+  if (!list.length) return `<div class="${cls}">${head}<p class="none">Nog niet gespeeld in deze periode</p></div>`;
+  const avg = (r) => (isDay ? 'gem. ' : 'gem. ') + nf(r.avg_score);
+  if (list.length === 2) {
+    // ik links, de ander rechts
+    const a = list.find((r) => r.player === me) || list[0], b = list.find((r) => r !== a);
+    const ties = Math.min(a.ties, b.ties), total = a.wins + b.wins + ties;
+    const pct = (n) => (total ? (n / total) * 100 : 0);
+    return `<div class="${cls}">${head}`
+      + `<div class="duel"><div class="who${lead === a.player ? ' lead' : ''}"><b>${esc(a.player)}</b><i>${a.wins}</i></div>`
+      + `<div class="bar" role="img" aria-label="${esc(a.player)} ${a.wins}, gelijk ${ties}, ${esc(b.player)} ${b.wins}">${total ? `<span class="a" style="width:${pct(a.wins)}%"></span><span class="t" style="width:${pct(ties)}%"></span><span class="b" style="width:${pct(b.wins)}%"></span>` : ''}</div>`
+      + `<div class="who r${lead === b.player ? ' lead' : ''}"><b>${esc(b.player)}</b><i>${b.wins}</i></div></div>`
+      + `<div class="avg"><span>${avg(a)}</span><span>${duels} ${duels === 1 ? 'duel' : 'duels'}${ties ? ` · ${ties} gelijk` : ''}</span><span>${avg(b)}</span></div></div>`;
+  }
+  // één speler of meer dan twee: lijstje
+  return `<div class="${cls}">${head}<ul class="multi">` + list.map((r) => `<li><b>${esc(r.player)}</b><span>${r.wins} gewonnen</span><span>${avg(r)}</span></li>`).join('') + '</ul></div>';
+};
+
 const fmtDay = (d) => new Date(d + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
 const showBoard = async () => {
   setTab('scores');
   const p = getProfile();
   $('who').textContent = p ? `${p.name} · ${p.group}` : 'Instellen';
   if (!p) { boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Stel eerst je naam en groepscode in om scores met je vriend te delen.</p>'; openSetup(showBoard); return; }
+  syncLbControls();
   if (!boardList.children.length) boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Leaderboards ophalen…</p>';
+  if (lbView === 'form') {
+    const since = lbDays ? dayStr(new Date(Date.now() - (lbDays - 1) * 86400000)) : null;
+    let form;
+    try { form = await loadForm(p.group, since); }
+    catch (x) { boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Kon de onderlinge stand niet ophalen. Controleer je internetverbinding.</p>'; return; }
+    if (lbView !== 'form') return;
+    boardList.innerHTML = formTile('Dagscore', form.filter((r) => r.game === '_dagscore'), p.name, true, true)
+      + games.map((g) => formTile(g.name, form.filter((r) => r.game === gameKey(g)), p.name, false, false)).join('');
+    return;
+  }
   let rows, dayTop;
   try { [rows, dayTop] = await Promise.all([loadTop(p.group), loadDayTop(p.group)]); }
   catch (x) { boardList.innerHTML = `<p class="msg" style="grid-column:1/-1">Kon de leaderboards niet ophalen. Controleer je internetverbinding.</p>`; return; }
+  if (lbView !== 'records') return;
   const row = (r, i, val) => `<li class="${r.player === p.name ? 'me' : ''}" data-day="${esc(fmtDay(r.day))}"><span class="rk">${i + 1}</span><span class="pn">${esc(r.player)}</span><span class="sc">${val}</span></li>`;
   // brede tegel bovenaan: hoogste dagscores ooit
   const dayTile = `<div class="lb wide"><h3><span class="gt">Dagscore</span><span class="gd"></span></h3>` + (dayTop.length

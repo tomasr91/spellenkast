@@ -125,6 +125,35 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;pa
 .lb.wide li{font-size:16px;grid-template-columns:20px minmax(0,1fr) auto;padding:3px 6px;margin:0 -6px}
 .lb.wide li .sc{font-size:17px}
 
+/* Schakelaar Records / Onderling + periodes */
+.seg{display:flex;background:var(--well);border-radius:12px;padding:4px;margin:0 0 12px}
+.seg button{flex:1;min-height:40px;border:0;border-radius:9px;background:transparent;color:var(--mute);font-weight:600;font-size:15px;cursor:pointer}
+.seg button[aria-selected=true]{background:var(--card);color:var(--purple);box-shadow:0 2px 6px -2px rgba(59,23,96,.25)}
+.periods{display:flex;gap:8px;margin:0 0 12px}
+.periods button{min-height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--edge);background:transparent;color:var(--mute);font-weight:600;font-size:14px;cursor:pointer}
+.periods button[aria-pressed=true]{background:var(--purple);border-color:var(--purple);color:#fff}
+/* Onderling */
+.fm{grid-column:1/-1;background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:12px 14px;box-shadow:0 6px 16px -12px rgba(59,23,96,.35)}
+.fm.wide{padding:14px 16px}
+.fm h3{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 8px;font-size:16px;font-weight:600;color:var(--purple)}
+.fm.wide h3{font-size:18px}
+.fm h3 .lead{font-size:14px;color:#b9821a;white-space:nowrap}
+.duel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px}
+.duel .who{font-size:14px;line-height:1.2;max-width:96px}
+.duel .who b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.duel .who i{font-style:normal;font-size:24px;font-weight:800;color:var(--purple);font-variant-numeric:tabular-nums}
+.duel .who.r{text-align:right}
+.duel .who.lead i{color:#c88c14}
+.bar{display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--well)}
+.bar span{display:block}
+.bar .a{background:var(--purple)}.bar .t{background:#d9ccb6}.bar .b{background:var(--mint)}
+.avg{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-top:6px;font-variant-numeric:tabular-nums}
+.fm .none{color:var(--mute);font-size:14px;margin:0}
+.multi{list-style:none;margin:0;padding:0}
+.multi li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;font-size:14px;padding:3px 0;font-variant-numeric:tabular-nums}
+.multi li b{font-weight:600}
+.multi li span{color:var(--mute)}
+
 /* Scores */
 .hbtns{display:flex;align-items:center;gap:6px}
 .pill{min-height:40px;padding:0 14px;border-radius:999px;border:0;background:var(--purple);color:#fff;font-weight:600;font-size:15px;cursor:pointer}
@@ -195,6 +224,15 @@ input:focus{outline:none;border-color:var(--gold)}
 
   <section id="board" hidden aria-labelledby="boardH">
     <h2 id="boardH" class="vh">Leaderboards</h2>
+    <div class="seg" role="tablist" aria-label="Weergave">
+      <button type="button" data-view="records" aria-selected="true">Records</button>
+      <button type="button" data-view="form" aria-selected="false">Onderling</button>
+    </div>
+    <div class="periods" id="periods" hidden>
+      <button type="button" data-days="7">7 dagen</button>
+      <button type="button" data-days="30" aria-pressed="true">30 dagen</button>
+      <button type="button" data-days="0">Altijd</button>
+    </div>
     <div class="lbgrid" id="boardList"></div>
   </section>
 </div>

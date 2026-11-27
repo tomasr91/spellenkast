@@ -59,6 +59,26 @@ if (IS_DEMO) {
   try { if (!localStorage.getItem(PROFILE_KEY)) localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: 'Tomas', group: 'DEMO01' })); } catch (e) {}
 }
 export const isDemo = IS_DEMO;
+const demoForm = (group, since) => {
+  const rows = demoRows.filter((r) => r.group_code === group && r.score !== null && (!since || r.day >= since));
+  const tot = {};
+  rows.filter((r) => DEMO_MAX[r.game]).forEach((r) => {
+    const k = r.player + '|' + r.day;
+    tot[k] = (tot[k] || 0) + Math.min(r.score / DEMO_MAX[r.game], 1) * 100;
+  });
+  const all = rows.map((r) => ({ game: r.game, player: r.player, day: r.day, score: r.score }))
+    .concat(Object.entries(tot).map(([k, v]) => { const [player, day] = k.split('|'); return { game: '_dagscore', player, day, score: Math.round(v) }; }));
+  const days = {};
+  all.forEach((r) => { (days[r.game + '|' + r.day] = days[r.game + '|' + r.day] || []).push(r); });
+  const out = {};
+  all.forEach((r) => {
+    const d = days[r.game + '|' + r.day], best = Math.max(...d.map((x) => x.score)), nTop = d.filter((x) => x.score === best).length;
+    const o = out[r.game + '|' + r.player] = out[r.game + '|' + r.player] || { game: r.game, player: r.player, played: 0, sum: 0, duels: 0, wins: 0, ties: 0 };
+    o.played++; o.sum += r.score;
+    if (d.length >= 2) { o.duels++; if (r.score === best) { if (nTop === 1) o.wins++; else o.ties++; } }
+  });
+  return Object.values(out).map(({ sum, ...o }) => ({ ...o, avg_score: Math.round(sum / o.played) }));
+};
 // In de voorbeeldversie heeft Sanne alvast een spel aan de groep toegevoegd.
 const demoGroupGames = IS_DEMO ? [{ group_code: 'DEMO01', game_key: 'wafflegame.net', name: 'Waffle', url: 'https://wafflegame.net', max_score: 15, added_by: 'Sanne' }] : [];
 const DEMO_MAX = { 'farflung.game': 500, 'krillion.io': 700, 'chainle.io': 5000, 'guessdash.com/extraplot': 5000 };
@@ -117,6 +137,16 @@ export async function loadDayTop(group) {
   const q = `group_code=eq.${encodeURIComponent(group)}&select=player,day,day_score,rank&order=rank.asc`;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/day_score_top5?${q}`, { headers: headers() });
   if (!res.ok) throw new Error(`Dagscores ophalen mislukt (${res.status})`);
+  return res.json();
+}
+
+// Onderlinge vorm vanaf een datum (functie player_form in Supabase). game '_dagscore' = dagscore-duels.
+export async function loadForm(group, since) {
+  if (IS_DEMO) return demoForm(group, since);
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/player_form`, {
+    method: 'POST', headers: headers(), body: JSON.stringify({ p_group: group, p_since: since || null })
+  });
+  if (!res.ok) throw new Error(`Onderlinge stand ophalen mislukt (${res.status})`);
   return res.json();
 }
 
