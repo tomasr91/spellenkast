@@ -24,7 +24,7 @@ const play = async (url) => {
 };
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
-import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadRecords, parseScore, detectGame, isDemo } from './scores.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, parseScore, detectGame, isDemo } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -94,10 +94,9 @@ const cardStats = (g) => {
   const top = todayRows().filter((r) => r.game === k && r.score !== null && r.score !== undefined)
     .sort((a, b) => Number(b.score) - Number(a.score)).slice(0, 2);
   const best = top.length > 1 ? Number(top[0].score) : null;
-  const rec = home.records.find((r) => r.game === k);
-  const rows = top.map((r) => `<span class="ts${Number(r.score) === best ? ' win' : ''}"><b>${esc(r.player)}</b><i>${nf(r.score)}</i></span>`).join('');
-  return `<span class="stats">${rows}</span>`
-    + (rec ? `<span class="rec">Record: ${esc(rec.player)} ${nf(rec.score)}</span>` : '');
+  if (!top.length) return '';
+  const parts = top.map((r) => `<span class="${Number(r.score) === best ? 'win' : ''}">${esc(r.player)} ${nf(r.score)}${Number(r.score) === best ? ' ★' : ''}</span>`);
+  return `<span class="stats">${parts.join(' · ')}</span>`;
 };
 
 // Dagscore: per spel score / max × 100 (max 100 per spel), opgeteld over alle spellen met een max.
@@ -120,9 +119,9 @@ const renderDayBar = () => {
   const list = dayScores();
   const top = list.length > 1 ? list[0].score : null;
   bar.hidden = false;
-  bar.innerHTML = '<span class="dl">Dagscore vandaag</span>' + (list.length
-    ? list.map((x) => `<span class="ds${x.score === top ? ' win' : ''}${x.name === p.name ? ' me' : ''}"><b>${esc(x.name)}</b><i>${x.score}</i></span>`).join('')
-    : '<span class="dn">Nog niemand gespeeld</span>');
+  bar.innerHTML = '<span class="dl">Dagscore</span> ' + (list.length
+    ? list.map((x) => `<span class="${x.score === top ? 'win' : ''}">${esc(x.name)} ${x.score}${x.score === top ? ' ★' : ''}</span>`).join(' · ')
+    : '<span>nog niemand gespeeld</span>');
 };
 
 const refreshHome = async () => {
@@ -130,8 +129,8 @@ const refreshHome = async () => {
   if (!p) return;
   try {
     const day = dayStr();
-    const [rows, records] = await Promise.all([loadScores(p.group, day), loadRecords(p.group)]);
-    home = { day, rows, records };
+    const rows = await loadScores(p.group, day);
+    home = { day, rows, records: [] };
     try { localStorage.setItem('quickplay-home', JSON.stringify(home)); } catch (e) {}
     if (!drag) render();
   } catch (e) { /* offline: laat de laatst bekende scores staan */ }

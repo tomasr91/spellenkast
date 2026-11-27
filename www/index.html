@@ -48,9 +48,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;pa
 
 /* Lijstweergave: volle breedte, illustratie links, naam rechts */
 .is-list .list{grid-template-columns:1fr;gap:10px}
-.is-list .card{flex-direction:row;align-items:center;gap:16px;padding:8px}
-.is-list .art{flex:0 0 136px;width:136px}
-.is-list .name{padding:0;font-size:19px}
+.is-list .card{flex-direction:row;align-items:center;gap:14px;padding:8px}
+.is-list .art{flex:0 0 92px;width:92px;border-radius:10px}
+.is-list .name{padding:0;font-size:18px}
 
 /* Eigen volgorde: sleepgreep */
 .manual .grip{display:grid;place-items:center;position:absolute;top:6px;right:6px;z-index:2;width:30px;height:44px;border-radius:10px;color:var(--mute);touch-action:none;cursor:grab;background:rgba(255,255,255,.88);box-shadow:0 2px 6px rgba(59,23,96,.2)}
@@ -59,7 +59,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;pa
 .card.dragging{z-index:10;cursor:grabbing;transition:none;border-color:var(--gold);box-shadow:0 20px 34px -14px rgba(59,23,96,.5)}
 .card.dragging .grip{cursor:grabbing;color:var(--gold)}
 
-.add{border:2px dashed #d9ccb6;border-radius:14px;background:transparent;color:var(--mute);cursor:pointer;min-height:84px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:15px;padding:12px}
+.add{border:2px dashed #d9ccb6;border-radius:14px;background:transparent;color:var(--mute);cursor:pointer;min-height:64px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:15px;padding:12px}
 .add span{font-size:28px;line-height:1;color:var(--gold)}
 .add:hover{border-color:var(--gold);color:var(--ink)}
 .del{position:absolute;top:6px;left:6px;z-index:3;width:40px;height:40px;border-radius:10px;border:0;background:#ff4d5e;color:#fff;font-weight:600;font-size:20px;cursor:pointer;display:none}
@@ -68,23 +68,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;pa
 .editing .card{cursor:default}
 @media(prefers-reduced-motion:reduce){.card{transition:none}}
 
-/* Dagscore + scores op de kaarten */
-.daybar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;background:var(--purple);color:#fff;border-radius:14px;padding:10px 14px;margin:0 0 12px}
-.daybar .dl{font-size:13px;opacity:.75;flex-basis:100%}
-.daybar .ds{display:inline-flex;align-items:baseline;gap:6px;font-size:16px}
-.daybar .ds b{font-weight:600}
-.daybar .ds i{font-style:normal;font-weight:800;font-size:22px;font-variant-numeric:tabular-nums}
-.daybar .ds.win i{color:var(--gold)}
-.daybar .ds.win b::after{content:" ★";color:var(--gold)}
-.daybar .dn{font-size:15px;opacity:.85}
+/* Dagscore + scores op de kaarten (rustig: één regel) */
+.daybar{font-size:15px;color:var(--mute);margin:-6px 2px 14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.daybar .dl{color:var(--ink);font-weight:600;margin-right:4px}
+.daybar .win{color:var(--purple);font-weight:600}
 .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.stats{display:flex;flex-direction:column;gap:1px;margin-top:4px}
-.ts{display:flex;justify-content:space-between;gap:8px;font-size:14px;line-height:1.35}
-.ts b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ts i{font-style:normal;font-variant-numeric:tabular-nums;font-weight:600}
-.ts.win i{color:#b9821a}
-.ts.win b::after{content:" ★";color:var(--gold)}
-.rec{font-size:12px;color:var(--mute);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stats{font-size:14px;line-height:1.35;color:var(--mute);font-variant-numeric:tabular-nums}
+.stats span{white-space:nowrap}
+.stats .win{color:var(--ink);font-weight:600}
 
 /* Tabbladen onderin */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;gap:8px;padding:8px 16px calc(8px + env(safe-area-inset-bottom));background:rgba(255,253,248,.94);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-top:1px solid var(--edge)}
