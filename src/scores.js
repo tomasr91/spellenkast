@@ -28,7 +28,41 @@ export const dayStr = (d = new Date()) => {
   return z.toISOString().slice(0, 10);
 };
 
+// ---- Voorbeeldversie (artifact): nepdata in plaats van Supabase ----
+// DEMO wordt bij het bouwen ingevuld (esbuild --define); in de app is het false.
+const IS_DEMO = typeof DEMO !== 'undefined' && DEMO;
+const demoRows = [];
+if (IS_DEMO) {
+  const d = (n) => dayStr(new Date(Date.now() - n * 86400000));
+  const add = (n, player, game, score, result) => demoRows.push({ group_code: 'DEMO01', player, game, day: d(n), score, result: result || null, created_at: new Date(Date.now() - n * 86400000).toISOString() });
+  add(0, 'Tomas', 'chainle.io', 4200, 'Chainle #100 · 4,200 🔗');
+  add(0, 'Sanne', 'chainle.io', 3850, 'Chainle #100 · 3,850 🔗');
+  add(0, 'Tomas', 'farflung.game', 240, 'Farflung #54 · 240/500 km');
+  add(0, 'Sanne', 'farflung.game', 310, 'Farflung #54 · 310/500 km');
+  add(0, 'Sanne', 'krillion.io', 412, 'Krillion #134 🦐\n412');
+  add(1, 'Tomas', 'chainle.io', 2335); add(1, 'Sanne', 'chainle.io', 4850);
+  add(1, 'Tomas', 'krillion.io', 560); add(1, 'Sanne', 'krillion.io', 355);
+  add(1, 'Tomas', 'guessdash.com/extraplot', 3120); add(1, 'Sanne', 'guessdash.com/extraplot', 2636);
+  add(2, 'Tomas', 'farflung.game', 380); add(2, 'Sanne', 'farflung.game', 410);
+  try { if (!localStorage.getItem(PROFILE_KEY)) localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: 'Tomas', group: 'DEMO01' })); } catch (e) {}
+}
+export const isDemo = IS_DEMO;
+const demoRecords = (group) => {
+  const best = {};
+  demoRows.filter((r) => r.group_code === group && r.score !== null).forEach((r) => {
+    const b = best[r.game];
+    if (!b || r.score > b.score) best[r.game] = r;
+  });
+  return Object.values(best).map(({ game, player, score, day }) => ({ game, player, score, day }));
+};
+
 export async function saveScore({ group, player, game, day, score, result }) {
+  if (IS_DEMO) {
+    const i = demoRows.findIndex((r) => r.group_code === group && r.player === player && r.game === game && r.day === day);
+    const row = { group_code: group, player, game, day, score, result, created_at: new Date().toISOString() };
+    if (i >= 0) demoRows[i] = row; else demoRows.push(row);
+    return;
+  }
   const res = await fetch(`${SUPABASE_URL}/rest/v1/scores?on_conflict=group_code,player,game,day`, {
     method: 'POST',
     headers: headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
@@ -38,9 +72,19 @@ export async function saveScore({ group, player, game, day, score, result }) {
 }
 
 export async function loadScores(group, day) {
+  if (IS_DEMO) return demoRows.filter((r) => r.group_code === group && r.day === day).map((r) => ({ ...r }));
   const q = `group_code=eq.${encodeURIComponent(group)}&day=eq.${day}&select=player,game,score,result,created_at&order=score.desc.nullslast`;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/scores?${q}`, { headers: headers() });
   if (!res.ok) throw new Error(`Ophalen mislukt (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  return res.json();
+}
+
+// Hoogste score ooit per spel in de groep (view game_records in Supabase).
+export async function loadRecords(group) {
+  if (IS_DEMO) return demoRecords(group);
+  const q = `group_code=eq.${encodeURIComponent(group)}&select=game,player,score,day`;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/game_records?${q}`, { headers: headers() });
+  if (!res.ok) throw new Error(`Records ophalen mislukt (${res.status})`);
   return res.json();
 }
 

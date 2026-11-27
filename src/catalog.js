@@ -2,10 +2,10 @@
 // Sleutel = hostnaam. fit: 'cover' voor brede preview-banners, 'contain' voor een vierkant app-icoon.
 
 export const CATALOG = {
-  'farflung.game': { image: 'https://farflung.game/share.png', fit: 'cover', bg: '#f4e9cd' },
-  'krillion.io': { image: 'https://krillion.io/og.png', fit: 'cover', bg: '#050a14' },
-  'chainle.io': { image: 'https://chainle.io/icon-512.png', fit: 'contain', bg: '#f7f8f6' },
-  'guessdash.com/extraplot': { image: 'https://guessdash.com/social/games/extraplot.png', fit: 'cover', bg: '#fff8e8' }
+  'farflung.game': { image: 'https://farflung.game/share.png', fit: 'cover', bg: '#f4e9cd', max: 500 },
+  'krillion.io': { image: 'https://krillion.io/og.png', fit: 'cover', bg: '#050a14', max: 700 },
+  'chainle.io': { image: 'https://chainle.io/icon-512.png', fit: 'contain', bg: '#f7f8f6', max: 5000 },
+  'guessdash.com/extraplot': { image: 'https://guessdash.com/social/games/extraplot.png', fit: 'cover', bg: '#fff8e8', max: 5000 }
 };
 
 export const hostOf = (u) => {

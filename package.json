@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Mijn spellenkast: webspelletjes verzamelen en in de app spelen",
   "scripts": {
-    "build": "esbuild src/main.js --bundle --minify --format=iife --outfile=www/app.js",
-    "sync": "npm run build && cap sync android"
+    "build": "esbuild src/main.js --bundle --minify --format=iife --define:DEMO=false --outfile=www/app.js",
+    "sync": "npm run build && cap sync android",
+    "preview": "esbuild src/main.js --bundle --minify --format=iife --define:DEMO=true --outfile=preview/app.js && cp www/index.html preview/index.html && mkdir -p preview/fonts && cp www/fonts/*.woff2 preview/fonts/"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.3",

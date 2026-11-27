@@ -24,7 +24,7 @@ const play = async (url) => {
 };
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
-import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, parseScore, detectGame } from './scores.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadRecords, parseScore, detectGame, isDemo } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -76,8 +76,65 @@ const card = (g, i) => {
     : `<img class="icon" src="${esc(faviconFor(g))}" alt="" loading="lazy" data-ini="${ini}">`;
   return `<div class="card" role="button" tabindex="0" data-idx="${i}" aria-label="Speel ${esc(g.name)}">`
     + `<button class="del" type="button" data-del="${i}" aria-label="Verwijder ${esc(g.name)}">×</button>`
-    + `<div class="art" style="--pbg:${bg}">${img}</div><span class="name">${esc(g.name)}</span>`
+    + `<div class="art" style="--pbg:${bg}">${img}</div>`
+    + `<div class="info"><span class="name">${esc(g.name)}</span>${cardStats(g)}</div>`
     + `<span class="grip" data-grip aria-label="Versleep ${esc(g.name)}">${GRIP}</span></div>`;
+};
+
+// ---- Scores van vandaag op de Spellen-tab ----
+let home = { day: null, rows: [], records: [] };
+try { const c = JSON.parse(localStorage.getItem('quickplay-home')); if (c && c.rows) home = c; } catch (e) {}
+const nf = (n) => Number(n).toLocaleString('nl-NL');
+const todayRows = () => (home.day === dayStr() ? home.rows : []);
+
+const cardStats = (g) => {
+  const p = getProfile();
+  if (!p) return '';
+  const k = gameKey(g);
+  const top = todayRows().filter((r) => r.game === k && r.score !== null && r.score !== undefined)
+    .sort((a, b) => Number(b.score) - Number(a.score)).slice(0, 2);
+  const best = top.length > 1 ? Number(top[0].score) : null;
+  const rec = home.records.find((r) => r.game === k);
+  const rows = top.map((r) => `<span class="ts${Number(r.score) === best ? ' win' : ''}"><b>${esc(r.player)}</b><i>${nf(r.score)}</i></span>`).join('');
+  return `<span class="stats">${rows}</span>`
+    + (rec ? `<span class="rec">Record: ${esc(rec.player)} ${nf(rec.score)}</span>` : '');
+};
+
+// Dagscore: per spel score / max × 100 (max 100 per spel), opgeteld over alle spellen met een max.
+const dayScores = () => {
+  const p = getProfile();
+  const per = {};
+  todayRows().forEach((r) => {
+    const g = games.find((x) => gameKey(x) === r.game);
+    const m = g && metaFor(g);
+    if (!m || !m.max || r.score === null || r.score === undefined) return;
+    per[r.player] = (per[r.player] || 0) + Math.min(Number(r.score) / m.max, 1) * 100;
+  });
+  if (p && Object.keys(per).length && !(p.name in per)) per[p.name] = 0;
+  return Object.entries(per).map(([name, v]) => ({ name, score: Math.round(v) })).sort((a, b) => b.score - a.score);
+};
+const renderDayBar = () => {
+  const bar = $('daybar');
+  const p = getProfile();
+  if (!p || editing) { bar.hidden = true; return; }
+  const list = dayScores();
+  const top = list.length > 1 ? list[0].score : null;
+  bar.hidden = false;
+  bar.innerHTML = '<span class="dl">Dagscore vandaag</span>' + (list.length
+    ? list.map((x) => `<span class="ds${x.score === top ? ' win' : ''}${x.name === p.name ? ' me' : ''}"><b>${esc(x.name)}</b><i>${x.score}</i></span>`).join('')
+    : '<span class="dn">Nog niemand gespeeld</span>');
+};
+
+const refreshHome = async () => {
+  const p = getProfile();
+  if (!p) return;
+  try {
+    const day = dayStr();
+    const [rows, records] = await Promise.all([loadScores(p.group, day), loadRecords(p.group)]);
+    home = { day, rows, records };
+    try { localStorage.setItem('quickplay-home', JSON.stringify(home)); } catch (e) {}
+    if (!drag) render();
+  } catch (e) { /* offline: laat de laatst bekende scores staan */ }
 };
 
 const render = () => {
@@ -85,6 +142,7 @@ const render = () => {
   grid.classList.toggle('editing', editing);
   grid.innerHTML = games.map(card).join('')
     + '<button class="add" type="button" id="addBtn"><span>+</span>Spel toevoegen</button>';
+  renderDayBar();
 };
 
 // Icoon van een eigen spel laadt niet: toon de eerste letter.
@@ -102,6 +160,7 @@ let lastGame = null;
 const open = (i) => {
   const g = games[i];
   if (!g || editing) return;
+  if (isDemo) { lastGame = { g, t: Date.now() - 5000 }; offerScore(); return; }
   lastGame = { g, t: Date.now() };
   hideToast();
   play(g.url);
@@ -228,6 +287,8 @@ setupForm.addEventListener('submit', (e) => {
   if (group.length < 4) { setupErr.textContent = 'Kies een groepscode van minstens 4 tekens, of tik op Nieuwe code.'; return; }
   setProfile({ name, group });
   setupDlg.close();
+  home = { day: null, rows: [], records: [] };
+  refreshHome();
   const f = afterSetup; afterSetup = null;
   if (f) f(); else if (!board.hidden) showBoard();
 });
@@ -237,6 +298,7 @@ const setTab = (tab) => {
     if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
   const scores = tab === 'scores';
+  if (!scores) refreshHome();
   grid.hidden = scores; board.hidden = !scores;
   editBtn.hidden = scores; $('who').hidden = !scores;
   if (scores && editing) { editing = false; editBtn.textContent = 'Bewerken'; editBtn.setAttribute('aria-pressed', false); render(); }
@@ -323,6 +385,7 @@ scoreForm.addEventListener('submit', async (e) => {
     await saveScore({ group: p.group, player: p.name, game: gameKey(g), day: dayStr(), score, result: stext.value.trim().slice(0, 2000) || null });
     scoreDlg.close();
     viewDay = dayStr();
+    refreshHome();
     showBoard();
   } catch (x) {
     scoreErr.textContent = 'Opslaan lukte niet. ' + x.message;
@@ -361,7 +424,8 @@ if (Capacitor.isNativePlatform()) {
   } catch (e) {}
 }
 try { InAppBrowser.addListener('browserClosed', () => setTimeout(offerScore, 300)); } catch (e) {}
-document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(offerScore, 300); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { setTimeout(offerScore, 300); refreshHome(); } });
 window.addEventListener('focus', () => setTimeout(offerScore, 300));
 
 render();
+refreshHome();

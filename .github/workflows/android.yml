@@ -1,8 +1,7 @@
 name: Android-app bouwen
 
 on:
-  push:
-    branches: [main]
+  # Alleen handmatig (of via Claude) een APK bouwen
   workflow_dispatch:
 
 permissions:
