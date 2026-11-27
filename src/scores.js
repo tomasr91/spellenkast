@@ -44,16 +44,27 @@ if (IS_DEMO) {
   add(1, 'Tomas', 'krillion.io', 560); add(1, 'Sanne', 'krillion.io', 355);
   add(1, 'Tomas', 'guessdash.com/extraplot', 3120); add(1, 'Sanne', 'guessdash.com/extraplot', 2636);
   add(2, 'Tomas', 'farflung.game', 380); add(2, 'Sanne', 'farflung.game', 410);
+  // nog een paar weken geschiedenis, zodat de leaderboards gevuld zijn
+  const maxes = { 'farflung.game': 500, 'krillion.io': 700, 'chainle.io': 5000, 'guessdash.com/extraplot': 5000 };
+  let seed = 7;
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  for (let n = 3; n < 24; n++) {
+    for (const [game, max] of Object.entries(maxes)) {
+      for (const who of ['Tomas', 'Sanne']) {
+        if (rnd() < 0.25) continue;
+        add(n, who, game, Math.round(max * (0.25 + rnd() * 0.65)));
+      }
+    }
+  }
   try { if (!localStorage.getItem(PROFILE_KEY)) localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: 'Tomas', group: 'DEMO01' })); } catch (e) {}
 }
 export const isDemo = IS_DEMO;
-const demoRecords = (group) => {
-  const best = {};
-  demoRows.filter((r) => r.group_code === group && r.score !== null).forEach((r) => {
-    const b = best[r.game];
-    if (!b || r.score > b.score) best[r.game] = r;
-  });
-  return Object.values(best).map(({ game, player, score, day }) => ({ game, player, score, day }));
+const demoTop = (group) => {
+  const by = {};
+  demoRows.filter((r) => r.group_code === group && r.score !== null)
+    .sort((a, b) => b.score - a.score || a.created_at.localeCompare(b.created_at))
+    .forEach((r) => { (by[r.game] = by[r.game] || []).push(r); });
+  return Object.values(by).flatMap((list) => list.slice(0, 5).map(({ game, player, score, day }, i) => ({ game, player, score, day, rank: i + 1 })));
 };
 
 export async function saveScore({ group, player, game, day, score, result }) {
@@ -79,12 +90,12 @@ export async function loadScores(group, day) {
   return res.json();
 }
 
-// Hoogste score ooit per spel in de groep (view game_records in Supabase).
-export async function loadRecords(group) {
-  if (IS_DEMO) return demoRecords(group);
-  const q = `group_code=eq.${encodeURIComponent(group)}&select=game,player,score,day`;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/game_records?${q}`, { headers: headers() });
-  if (!res.ok) throw new Error(`Records ophalen mislukt (${res.status})`);
+// Top 5 aller tijden per spel in de groep (view game_top5 in Supabase), met datum.
+export async function loadTop(group) {
+  if (IS_DEMO) return demoTop(group);
+  const q = `group_code=eq.${encodeURIComponent(group)}&select=game,player,score,day,rank&order=game.asc,rank.asc`;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/game_top5?${q}`, { headers: headers() });
+  if (!res.ok) throw new Error(`Leaderboard ophalen mislukt (${res.status})`);
   return res.json();
 }
 

@@ -24,7 +24,7 @@ const play = async (url) => {
 };
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
-import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, parseScore, detectGame, isDemo } from './scores.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, parseScore, detectGame, isDemo } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -121,13 +121,13 @@ const dayScores = () => {
 const renderDayBar = () => {
   const bar = $('daybar');
   const p = getProfile();
-  if (!p || editing) { bar.hidden = true; return; }
+  if (!p || editing || !board.hidden) { bar.hidden = true; return; }
   const { list, done } = dayScores();
   const top = list.length > 1 ? list[0].score : null;
   const tie = list.length > 1 && list[0].score === list[1].score;
   bar.hidden = false;
   bar.classList.toggle('final', done);
-  bar.innerHTML = `<span class="dl">${done ? 'Dagscore' : 'Tussenstand'}</span>` + (list.length
+  bar.innerHTML = (list.length
     ? '<div class="dp">' + list.map((x) => {
         const lead = x.score === top;
         return `<div class="dpl${lead ? ' win' : ''}"><b>${esc(x.name)}${lead && done && !tie ? ' ' + TROPHY : ''}${lead && !done ? ' <span class="st">★</span>' : ''}</b><i>${x.score}</i></div>`;
@@ -264,7 +264,7 @@ const gameKey = (g) => {
   return path ? hostOf(g.url) + '/' + path : hostOf(g.url);
 };
 
-const board = $('board'), boardList = $('boardList'), dayLabel = $('dayLabel'), nextDay = $('nextDay');
+const board = $('board'), boardList = $('boardList');
 const setupDlg = $('setup'), setupForm = $('setupForm'), pname = $('pname'), pgroup = $('pgroup'), setupErr = $('setupErr');
 const scoreDlg = $('scoreDlg'), scoreForm = $('scoreForm'), sgame = $('sgame'), stext = $('stext'), sval = $('sval'), scoreErr = $('scoreErr');
 const toast = $('toast');
@@ -272,13 +272,6 @@ let viewDay = dayStr();
 let afterSetup = null;
 
 const fmt = (n) => (n === null || n === undefined || n === '') ? '–' : Number(n).toLocaleString('nl-NL');
-const dayName = (d) => {
-  const today = dayStr(), y = dayStr(new Date(Date.now() - 86400000));
-  if (d === today) return 'Vandaag';
-  if (d === y) return 'Gisteren';
-  return new Date(d + 'T12:00:00').toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
-};
-const shiftDay = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return dayStr(x); };
 
 const openSetup = (then) => {
   const p = getProfile();
@@ -310,38 +303,44 @@ const setTab = (tab) => {
   const scores = tab === 'scores';
   if (!scores) refreshHome();
   grid.hidden = scores; board.hidden = !scores;
+  renderDayBar();
   editBtn.hidden = scores; $('who').hidden = !scores;
   if (scores && editing) { editing = false; editBtn.textContent = 'Bewerken'; editBtn.setAttribute('aria-pressed', false); render(); }
   window.scrollTo(0, 0);
 };
 
+const fmtDay = (d) => new Date(d + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
 const showBoard = async () => {
   setTab('scores');
   const p = getProfile();
   $('who').textContent = p ? `${p.name} · ${p.group}` : 'Instellen';
-  if (!p) { boardList.innerHTML = '<p class="msg">Stel eerst je naam en groepscode in om scores met je vriend te delen.</p>'; openSetup(showBoard); return; }
-  dayLabel.textContent = dayName(viewDay);
-  nextDay.disabled = viewDay >= dayStr();
-  boardList.innerHTML = '<p class="msg">Scores ophalen…</p>';
+  if (!p) { boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Stel eerst je naam en groepscode in om scores met je vriend te delen.</p>'; openSetup(showBoard); return; }
+  if (!boardList.children.length) boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Leaderboards ophalen…</p>';
   let rows;
-  try { rows = await loadScores(p.group, viewDay); }
-  catch (x) { boardList.innerHTML = `<p class="msg">Kon de scores niet ophalen. Controleer je internetverbinding.<br><small>${esc(x.message)}</small></p>`; return; }
-  const byGame = {};
-  rows.forEach((r) => { (byGame[r.game] = byGame[r.game] || []).push(r); });
-  const players = [...new Set(rows.map((r) => r.player))];
-  if (!players.includes(p.name)) players.push(p.name);
+  try { rows = await loadTop(p.group); }
+  catch (x) { boardList.innerHTML = `<p class="msg" style="grid-column:1/-1">Kon de leaderboards niet ophalen. Controleer je internetverbinding.</p>`; return; }
+  // zelfde volgorde als de Spellen-tab
   boardList.innerHTML = games.map((g) => {
-    const k = gameKey(g), list = (byGame[k] || []).slice().sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
-    const top = list.length > 1 && list[0].score !== null ? list[0].score : null;
-    const m = metaFor(g);
-    const missing = players.filter((n) => !list.some((r) => r.player === n));
-    return `<div class="gboard"><h3>${m ? `<img src="${esc(m.image)}" alt="">` : ''}${esc(g.name)}</h3>`
-      + (list.length ? list.map((r) => `<div class="prow${r.score === top ? ' win' : ''}${r.player === p.name ? ' me' : ''}"><span class="pn">${esc(r.player)}</span><span class="ps">${fmt(r.score)}</span>`
-        + (r.result ? `<details><summary>uitslag tonen</summary><div class="raw">${esc(r.result)}</div></details>` : '') + '</div>').join('') : '')
-      + (missing.length ? `<p class="wait">Nog niet gespeeld: ${missing.map(esc).join(', ')}</p>` : '')
-      + '</div>';
+    const k = gameKey(g);
+    const list = rows.filter((r) => r.game === k).sort((a, b) => a.rank - b.rank).slice(0, 5);
+    return `<div class="lb"><h3>${esc(g.name)}</h3>` + (list.length
+      ? '<ol>' + list.map((r, i) => `<li class="${r.player === p.name ? 'me' : ''}" title="${esc(fmtDay(r.day))}"><span class="rk">${i + 1}</span><span class="pn">${esc(r.player)}</span><span class="sc">${nf(r.score)}</span><span class="dt">${esc(fmtDay(r.day))}</span></li>`).join('') + '</ol>'
+      : '<p class="none">Nog geen scores</p>') + '</div>';
   }).join('');
 };
+
+// Ingedrukt houden op een score: datum tonen zolang je vasthoudt.
+let peekTimer = null, peekEl = null;
+const endPeek = () => { clearTimeout(peekTimer); if (peekEl) peekEl.classList.remove('peek'); peekEl = null; };
+boardList.addEventListener('pointerdown', (e) => {
+  const li = e.target.closest('.lb li');
+  if (!li) return;
+  endPeek();
+  peekTimer = setTimeout(() => { peekEl = li; li.classList.add('peek'); if (navigator.vibrate) try { navigator.vibrate(10); } catch (x) {} }, 350);
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => boardList.addEventListener(t, endPeek));
+boardList.addEventListener('contextmenu', (e) => { if (e.target.closest('.lb li')) e.preventDefault(); });
+
 const showGames = () => setTab('games');
 
 document.querySelector('.tabs').addEventListener('click', (e) => {
@@ -350,8 +349,6 @@ document.querySelector('.tabs').addEventListener('click', (e) => {
   if (b.dataset.tab === 'scores') { viewDay = dayStr(); showBoard(); } else showGames();
 });
 $('who').addEventListener('click', () => openSetup());
-$('prevDay').addEventListener('click', () => { viewDay = shiftDay(viewDay, -1); showBoard(); });
-nextDay.addEventListener('click', () => { if (viewDay < dayStr()) { viewDay = shiftDay(viewDay, 1); showBoard(); } });
 
 const openScore = (g, shared) => {
   const go = () => {
