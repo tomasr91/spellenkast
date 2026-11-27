@@ -59,6 +59,16 @@ if (IS_DEMO) {
   try { if (!localStorage.getItem(PROFILE_KEY)) localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: 'Tomas', group: 'DEMO01' })); } catch (e) {}
 }
 export const isDemo = IS_DEMO;
+const DEMO_MAX = { 'farflung.game': 500, 'krillion.io': 700, 'chainle.io': 5000, 'guessdash.com/extraplot': 5000 };
+const demoDayTop = (group) => {
+  const tot = {};
+  demoRows.filter((r) => r.group_code === group && r.score !== null && DEMO_MAX[r.game]).forEach((r) => {
+    const k = r.player + '|' + r.day;
+    tot[k] = (tot[k] || 0) + Math.min(r.score / DEMO_MAX[r.game], 1) * 100;
+  });
+  return Object.entries(tot).map(([k, v]) => { const [player, day] = k.split('|'); return { player, day, day_score: Math.round(v) }; })
+    .sort((a, b) => b.day_score - a.day_score || a.day.localeCompare(b.day)).slice(0, 5).map((r, i) => ({ ...r, rank: i + 1 }));
+};
 const demoTop = (group) => {
   const by = {};
   demoRows.filter((r) => r.group_code === group && r.score !== null)
@@ -96,6 +106,15 @@ export async function loadTop(group) {
   const q = `group_code=eq.${encodeURIComponent(group)}&select=game,player,score,day,rank&order=game.asc,rank.asc`;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/game_top5?${q}`, { headers: headers() });
   if (!res.ok) throw new Error(`Leaderboard ophalen mislukt (${res.status})`);
+  return res.json();
+}
+
+// Top 5 hoogste dagscores aller tijden (view day_score_top5; max per spel staat in tabel game_max).
+export async function loadDayTop(group) {
+  if (IS_DEMO) return demoDayTop(group);
+  const q = `group_code=eq.${encodeURIComponent(group)}&select=player,day,day_score,rank&order=rank.asc`;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/day_score_top5?${q}`, { headers: headers() });
+  if (!res.ok) throw new Error(`Dagscores ophalen mislukt (${res.status})`);
   return res.json();
 }
 

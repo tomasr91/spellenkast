@@ -24,7 +24,7 @@ const play = async (url) => {
 };
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
-import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, parseScore, detectGame, isDemo } from './scores.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, parseScore, detectGame, isDemo } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -316,15 +316,20 @@ const showBoard = async () => {
   $('who').textContent = p ? `${p.name} · ${p.group}` : 'Instellen';
   if (!p) { boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Stel eerst je naam en groepscode in om scores met je vriend te delen.</p>'; openSetup(showBoard); return; }
   if (!boardList.children.length) boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Leaderboards ophalen…</p>';
-  let rows;
-  try { rows = await loadTop(p.group); }
+  let rows, dayTop;
+  try { [rows, dayTop] = await Promise.all([loadTop(p.group), loadDayTop(p.group)]); }
   catch (x) { boardList.innerHTML = `<p class="msg" style="grid-column:1/-1">Kon de leaderboards niet ophalen. Controleer je internetverbinding.</p>`; return; }
+  const row = (r, i, val) => `<li class="${r.player === p.name ? 'me' : ''}" data-day="${esc(fmtDay(r.day))}"><span class="rk">${i + 1}</span><span class="pn">${esc(r.player)}</span><span class="sc">${val}</span></li>`;
+  // brede tegel bovenaan: hoogste dagscores ooit
+  const dayTile = `<div class="lb wide"><h3><span class="gt">Dagscore</span><span class="gd"></span></h3>` + (dayTop.length
+    ? '<ol>' + dayTop.map((r, i) => row(r, i, nf(r.day_score))).join('') + '</ol>'
+    : '<p class="none">Nog geen dagscores</p>') + '</div>';
   // zelfde volgorde als de Spellen-tab
-  boardList.innerHTML = games.map((g) => {
+  boardList.innerHTML = dayTile + games.map((g) => {
     const k = gameKey(g);
     const list = rows.filter((r) => r.game === k).sort((a, b) => a.rank - b.rank).slice(0, 5);
     return `<div class="lb"><h3><span class="gt">${esc(g.name)}</span><span class="gd"></span></h3>` + (list.length
-      ? '<ol>' + list.map((r, i) => `<li class="${r.player === p.name ? 'me' : ''}" data-day="${esc(fmtDay(r.day))}"><span class="rk">${i + 1}</span><span class="pn">${esc(r.player)}</span><span class="sc">${nf(r.score)}</span></li>`).join('') + '</ol>'
+      ? '<ol>' + list.map((r, i) => row(r, i, nf(r.score))).join('') + '</ol>'
       : '<p class="none">Nog geen scores</p>') + '</div>';
   }).join('');
 };
