@@ -2,5 +2,13 @@
   "appId": "nl.tomas.spellenkast",
   "appName": "Quickplay",
   "webDir": "www",
-  "android": { "backgroundColor": "#f5f0e6" }
+  "android": {
+    "backgroundColor": "#f5f0e6"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_quickplay",
+      "iconColor": "#3B1760"
+    }
+  }
 }

@@ -24,6 +24,7 @@ const play = async (url) => {
 };
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
+import { getReminders, setReminders, ensurePermission, reschedule } from './reminders.js';
 import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, loadForm, loadGroupGames, addGroupGame, removeGroupGame, parseScore, detectGame, isDemo } from './scores.js';
 
 const KEY = 'spellenkast-v1';
@@ -191,6 +192,7 @@ const refreshHome = async () => {
     home = { day, rows, records: [] };
     try { localStorage.setItem('quickplay-home', JSON.stringify(home)); } catch (e) {}
     if (!drag) render();
+    planReminders();
   } catch (e) { /* offline: laat de laatst bekende scores staan */ }
 };
 
@@ -369,7 +371,7 @@ const setTab = (tab) => {
   if (!scores) refreshHome();
   grid.hidden = scores; board.hidden = !scores;
   renderDayBar();
-  editBtn.hidden = scores; $('who').hidden = !scores;
+  document.querySelector('.hbtns').hidden = scores; $('who').hidden = !scores;
   if (scores && editing) { editing = false; editBtn.textContent = 'Bewerken'; editBtn.setAttribute('aria-pressed', false); render(); }
   window.scrollTo(0, 0);
 };
@@ -564,4 +566,69 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { se
 window.addEventListener('focus', () => setTimeout(offerScore, 300));
 
 render();
+// ---------------- Herinneringen ----------------
+const remDlg = $('remDlg'), remOn = $('remOn'), remTimes = $('remTimes'), remInfo = $('remInfo'), remErr = $('remErr');
+const remaining = () => {
+  const p = getProfile();
+  if (!p) return games.length;
+  return games.filter((g) => !todayRows().some((r) => r.player === p.name && r.game === gameKey(g) && r.score !== null && r.score !== undefined)).length;
+};
+const updateBell = () => {
+  const r = getReminders();
+  $('bell').classList.toggle('on', r.on);
+  $('bellDot').hidden = !r.on;
+};
+const planReminders = async () => {
+  const plan = await reschedule({ remainingToday: remaining(), totalGames: games.length });
+  updateBell();
+  return plan;
+};
+const nextText = (plan) => {
+  if (!plan.length) return '';
+  const at = plan.map((n) => n.schedule.at).sort((a, b) => a - b)[0];
+  const today = dayStr(), tom = dayStr(new Date(Date.now() + 86400000)), d = dayStr(at);
+  const hm = at.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  const when = d === today ? 'vandaag' : d === tom ? 'morgen' : at.toLocaleDateString('nl-NL', { weekday: 'long' });
+  return `Volgende melding: ${when} om ${hm}.` + (remaining() === 0 && d !== today ? ' Je hebt vandaag alles gespeeld.' : '');
+};
+const timeRow = (t) => `<div class="trow"><input type="time" value="${esc(t)}" required><button type="button" data-rm aria-label="Tijd verwijderen">×</button></div>`;
+const readTimes = () => [...remTimes.querySelectorAll('input[type=time]')].map((i) => i.value).filter(Boolean);
+const syncRemUi = () => { remTimes.classList.toggle('off', !remOn.checked); $('remAdd').disabled = !remOn.checked; };
+$('bell').addEventListener('click', async () => {
+  const r = getReminders();
+  remOn.checked = r.on;
+  remTimes.innerHTML = (r.times.length ? r.times : ['19:30']).map(timeRow).join('');
+  remErr.textContent = '';
+  remInfo.textContent = r.on ? nextText(await reschedule({ remainingToday: remaining(), totalGames: games.length })) : '';
+  syncRemUi();
+  remDlg.showModal();
+});
+remOn.addEventListener('change', syncRemUi);
+$('remAdd').addEventListener('click', () => {
+  const last = readTimes().slice(-1)[0] || '19:30';
+  const [h, m] = last.split(':').map(Number);
+  const nt = `${String((h + 2) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  remTimes.insertAdjacentHTML('beforeend', timeRow(nt));
+});
+remTimes.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rm]');
+  if (b && remTimes.children.length > 1) b.closest('.trow').remove();
+});
+$('remCancel').addEventListener('click', () => remDlg.close());
+$('remForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const times = readTimes();
+  if (remOn.checked && !times.length) { remErr.textContent = 'Kies minstens één tijd.'; return; }
+  if (remOn.checked && !(await ensurePermission())) {
+    remErr.textContent = 'Quickplay mag nog geen meldingen sturen. Sta dat toe bij Instellingen → Apps → Quickplay → Meldingen.';
+    return;
+  }
+  setReminders({ on: remOn.checked, times });
+  const plan = await planReminders();
+  remInfo.textContent = nextText(plan);
+  remDlg.close();
+});
+
+updateBell();
 refreshHome();
+planReminders();
