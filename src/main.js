@@ -148,7 +148,7 @@ const refreshHome = async () => {
 };
 
 const render = () => {
-  app.classList.toggle('manual', !editing);
+  app.classList.toggle('manual', editing);
   grid.classList.toggle('editing', editing);
   grid.innerHTML = games.map(card).join('')
     + '<button class="add" type="button" id="addBtn"><span>+</span>Spel toevoegen</button>';
@@ -186,7 +186,7 @@ const place = () => {
 };
 grid.addEventListener('pointerdown', (e) => {
   const handle = e.target.closest('[data-grip]');
-  if (!handle || editing) return;
+  if (!handle || !editing) return;
   e.preventDefault();
   const el = handle.closest('.card');
   const r = el.getBoundingClientRect();

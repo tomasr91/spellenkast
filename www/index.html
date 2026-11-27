@@ -62,9 +62,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;pa
 .add{border:2px dashed #d9ccb6;border-radius:14px;background:transparent;color:var(--mute);cursor:pointer;min-height:64px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:15px;padding:12px}
 .add span{font-size:28px;line-height:1;color:var(--gold)}
 .add:hover{border-color:var(--gold);color:var(--ink)}
-.del{position:absolute;top:6px;left:6px;z-index:3;width:40px;height:40px;border-radius:10px;border:0;background:#ff4d5e;color:#fff;font-weight:600;font-size:20px;cursor:pointer;display:none}
-.editing .del{display:block}
-.is-list .editing .del{position:static;flex:none}
+.del{position:absolute;top:2px;left:2px;z-index:3;width:30px;height:30px;border-radius:50%;border:1.5px solid #e9a2ad;background:#fff;color:#d6284a;font-weight:600;font-size:17px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0}
+.editing .del{display:flex}
+.editing .stats{display:none}
+.editing .del{box-shadow:0 2px 6px rgba(59,23,96,.25)}
 .editing .card{cursor:default}
 @media(prefers-reduced-motion:reduce){.card{transition:none}}
 
