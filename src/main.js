@@ -24,7 +24,7 @@ const play = async (url) => {
 };
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
-import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, parseScore, detectGame, isDemo } from './scores.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, loadGroupGames, addGroupGame, removeGroupGame, parseScore, detectGame, isDemo } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -59,7 +59,7 @@ let games = load();
 const TINTS = ['#f3e2b8', '#d5efe4', '#e6dcef', '#f6dcc4', '#dbe7d2', '#efe3d0'];
 const $ = (id) => document.getElementById(id);
 const app = $('app'), grid = $('grid'), editBtn = $('edit');
-const dlg = $('dlg'), form = $('form'), fname = $('fname'), furl = $('furl'), err = $('err');
+const dlg = $('dlg'), form = $('form'), fname = $('fname'), furl = $('furl'), fmax = $('fmax'), err = $('err');
 
 let editing = false;
 
@@ -80,6 +80,9 @@ const card = (g, i) => {
     + `<div class="info"><span class="name">${esc(g.name)}</span>${cardStats(g)}</div>`
     + `<span class="grip" data-grip aria-label="Versleep ${esc(g.name)}">${GRIP}</span></div>`;
 };
+
+// Max score van een spel: uit de catalogus, of zelf opgegeven bij toevoegen.
+const maxFor = (g) => { const m = metaFor(g); return (m && m.max) || Number(g.max) || 0; };
 
 // ---- Scores van vandaag op de Spellen-tab ----
 let home = { day: null, rows: [], records: [] };
@@ -105,12 +108,12 @@ const TROPHY = '<svg class="cup" viewBox="0 0 24 24" aria-label="winnaar"><path 
 // Klaar = iedereen die vandaag meedoet heeft alle spellen met een max gespeeld.
 const dayScores = () => {
   const p = getProfile();
-  const scored = games.filter((g) => { const m = metaFor(g); return m && m.max; });
+  const scored = games.filter((g) => maxFor(g));
   const per = {}, played = {};
   todayRows().forEach((r) => {
     const g = scored.find((x) => gameKey(x) === r.game);
     if (!g || r.score === null || r.score === undefined) return;
-    per[r.player] = (per[r.player] || 0) + Math.min(Number(r.score) / metaFor(g).max, 1) * 100;
+    per[r.player] = (per[r.player] || 0) + Math.min(Number(r.score) / maxFor(g), 1) * 100;
     (played[r.player] = played[r.player] || new Set()).add(r.game);
   });
   if (p && Object.keys(per).length && !(p.name in per)) per[p.name] = 0;
@@ -135,9 +138,53 @@ const renderDayBar = () => {
     : '<span class="dn">Nog niemand gespeeld vandaag</span>');
 };
 
+// ---- Spellen delen met de groep ----
+// Toevoegen en verwijderen gelden voor de hele groep (tabel group_games, met removed_at bij verwijderen).
+const isDefault = (g) => DEFAULT.some((d) => gameKey(d) === gameKey(g));
+const shareGame = (g, force) => {
+  const p = getProfile();
+  if (!p || (isDefault(g) && !force)) return;
+  addGroupGame({ group: p.group, key: gameKey(g), name: g.name, url: g.url, max: g.max, by: p.name }).catch(() => {});
+};
+const unshareGame = (g) => {
+  const p = getProfile();
+  if (!p) return;
+  removeGroupGame({ group: p.group, key: gameKey(g), name: g.name, url: g.url, by: p.name }).catch(() => {});
+};
+let syncing = false;
+const syncGroupGames = async () => {
+  const p = getProfile();
+  if (!p || syncing) return;
+  syncing = true;
+  try {
+    const remote = await loadGroupGames(p.group);
+    const byKey = new Map(remote.map((r) => [r.game_key, r]));
+    let changed = false;
+    // door iemand in de groep verwijderd: ook hier weg
+    const before = games.length;
+    games = games.filter((g) => { const r = byKey.get(gameKey(g)); return !(r && r.removed_at); });
+    if (games.length !== before) changed = true;
+    // eigen spellen die de groep nog niet kent: delen
+    games.filter((g) => !isDefault(g) && !byKey.has(gameKey(g))).forEach((g) => shareGame(g));
+    // spellen van de groep die ik nog niet heb: toevoegen (onderaan)
+    remote.forEach((r) => {
+      if (r.removed_at) return;
+      const mine = games.find((g) => gameKey(g) === r.game_key);
+      if (!mine) {
+        const g = { name: r.name, url: r.url };
+        if (r.max_score) g.max = Number(r.max_score);
+        games.push(g); changed = true;
+      } else if (!mine.max && r.max_score && !metaFor(mine)) { mine.max = Number(r.max_score); changed = true; }
+    });
+    if (changed) { save(); if (!drag) render(); }
+  } catch (e) { /* offline: volgende keer */ }
+  finally { syncing = false; }
+};
+
 const refreshHome = async () => {
   const p = getProfile();
   if (!p) return;
+  syncGroupGames();
   try {
     const day = dayStr();
     const rows = await loadScores(p.group, day);
@@ -226,8 +273,20 @@ grid.addEventListener('pointercancel', endDrag);
 
 grid.addEventListener('click', (e) => {
   if (e.target.closest('[data-grip]')) return;
+  if (!e.target.closest('[data-del]')) grid.querySelectorAll('.del.sure').forEach((x) => { x.classList.remove('sure'); x.textContent = '×'; });
   const d = e.target.closest('[data-del]');
-  if (d) { e.stopPropagation(); games.splice(+d.dataset.del, 1); save(); render(); return; }
+  if (d) {
+    e.stopPropagation();
+    // eerste tik: bevestigen; tweede tik: weg voor de hele groep
+    if (!d.classList.contains('sure')) {
+      grid.querySelectorAll('.del.sure').forEach((x) => { x.classList.remove('sure'); x.textContent = '×'; });
+      d.classList.add('sure'); d.textContent = getProfile() ? 'Verwijderen voor iedereen' : 'Verwijderen';
+      return;
+    }
+    const [gone] = games.splice(+d.dataset.del, 1);
+    if (gone) unshareGame(gone);
+    save(); render(); return;
+  }
   if (e.target.closest('#addBtn')) { err.textContent = ''; form.reset(); dlg.showModal(); fname.focus(); return; }
   const c = e.target.closest('.card');
   if (c) open(+c.dataset.idx);
@@ -252,7 +311,13 @@ form.addEventListener('submit', (e) => {
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   try { const u = new URL(url); if (!u.hostname.includes('.')) throw 0; } catch (x) { err.textContent = 'Dat lijkt geen geldig webadres.'; return; }
   if (games.some((g) => g.url.replace(/\/$/, '') === url.replace(/\/$/, ''))) { err.textContent = 'Dit spel staat al in je lijst.'; return; }
-  games.push({ name, url });
+  const maxRaw = (fmax.value || '').trim();
+  const max = maxRaw === '' ? null : Number(maxRaw.replace(/\./g, '').replace(',', '.'));
+  if (maxRaw !== '' && !(max > 0)) { err.textContent = 'De max score moet een getal groter dan 0 zijn.'; return; }
+  const g = { name, url };
+  if (max) g.max = max;
+  games.push(g);
+  shareGame(g, true);
   save(); render(); dlg.close();
 });
 
@@ -390,7 +455,6 @@ const tryPaste = async (quiet) => {
 $('paste').addEventListener('click', () => tryPaste(false));
 stext.addEventListener('input', fillFromText);
 $('scoreCancel').addEventListener('click', () => scoreDlg.close());
-$('addScore').addEventListener('click', () => openScore(null));
 scoreForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const p = getProfile(), g = games[+sgame.value];

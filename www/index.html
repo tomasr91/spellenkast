@@ -64,6 +64,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;pa
 .add:hover{border-color:var(--gold);color:var(--ink)}
 .del{position:absolute;top:2px;left:2px;z-index:3;width:30px;height:30px;border-radius:50%;border:1.5px solid #e9a2ad;background:#fff;color:#d6284a;font-weight:600;font-size:17px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0}
 .editing .del{display:flex}
+.del.sure{width:auto;border-radius:999px;padding:0 12px;background:#d6284a;border-color:#d6284a;color:#fff;font-size:13px;height:32px;white-space:nowrap;z-index:5}
 .editing .stats{display:none}
 .editing .del{box-shadow:0 2px 6px rgba(59,23,96,.25)}
 .editing .card{cursor:default}
@@ -102,7 +103,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;pa
 #who{max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* Leaderboards: vierkante tegels, 2 naast elkaar */
-.lbgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.lbgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:calc(96px + env(safe-area-inset-bottom))}
 @media(min-width:700px){.lbgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .lb{aspect-ratio:1;background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:12px 12px 10px;display:flex;flex-direction:column;box-shadow:0 6px 16px -12px rgba(59,23,96,.35);overflow:hidden}
 .lb h3{margin:0 0 6px;font-size:16px;font-weight:600;color:var(--purple);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:22px}
@@ -150,6 +151,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;pa
 .wait{color:var(--mute);font-size:14px;margin:6px 0 0}
 .msg{color:var(--mute);background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:14px;margin:0 0 12px}
 .sub{color:var(--mute);margin:0 0 4px;font-size:15px}
+.sub.small{font-size:13px;margin:8px 0 0}
+.opt{font-weight:400;color:var(--mute);font-size:13px}
 .row2{display:flex;gap:8px;margin-top:4px}.row2 input{margin-top:0}.row2 .btn{flex:none}
 select,textarea{width:100%;font:16px Rubik,sans-serif;padding:10px 12px;border-radius:10px;border:2px solid var(--edge);background:var(--well);color:var(--ink);margin-top:4px}
 select{min-height:48px}
@@ -193,7 +196,6 @@ input:focus{outline:none;border-color:var(--gold)}
   <section id="board" hidden aria-labelledby="boardH">
     <h2 id="boardH" class="vh">Leaderboards</h2>
     <div class="lbgrid" id="boardList"></div>
-    <button class="add" id="addScore" type="button"><span>+</span>Score toevoegen</button>
   </section>
 </div>
 
@@ -249,6 +251,9 @@ input:focus{outline:none;border-color:var(--gold)}
     <input id="fname" autocomplete="off" placeholder="Bijvoorbeeld Slither">
     <label for="furl">Webadres</label>
     <input id="furl" inputmode="url" autocomplete="off" placeholder="spel.io">
+    <label for="fmax">Max score <span class="opt">(optioneel, voor de dagscore)</span></label>
+    <input id="fmax" inputmode="decimal" autocomplete="off" placeholder="Bijvoorbeeld 5000">
+    <p class="sub small">Je groep krijgt dit spel ook automatisch.</p>
     <p class="err" id="err"></p>
     <div class="btns">
       <button class="btn" type="button" id="cancel">Annuleren</button>

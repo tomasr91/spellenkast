@@ -59,6 +59,8 @@ if (IS_DEMO) {
   try { if (!localStorage.getItem(PROFILE_KEY)) localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: 'Tomas', group: 'DEMO01' })); } catch (e) {}
 }
 export const isDemo = IS_DEMO;
+// In de voorbeeldversie heeft Sanne alvast een spel aan de groep toegevoegd.
+const demoGroupGames = IS_DEMO ? [{ group_code: 'DEMO01', game_key: 'wafflegame.net', name: 'Waffle', url: 'https://wafflegame.net', max_score: 15, added_by: 'Sanne' }] : [];
 const DEMO_MAX = { 'farflung.game': 500, 'krillion.io': 700, 'chainle.io': 5000, 'guessdash.com/extraplot': 5000 };
 const demoDayTop = (group) => {
   const tot = {};
@@ -117,6 +119,33 @@ export async function loadDayTop(group) {
   if (!res.ok) throw new Error(`Dagscores ophalen mislukt (${res.status})`);
   return res.json();
 }
+
+// Spellen van de groep (tabel group_games): wat iemand toevoegt, krijgen de anderen automatisch.
+export async function loadGroupGames(group) {
+  if (IS_DEMO) return demoGroupGames.filter((g) => g.group_code === group);
+  const q = `group_code=eq.${encodeURIComponent(group)}&select=game_key,name,url,max_score,added_by,removed_at,created_at&order=created_at.asc`;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/group_games?${q}`, { headers: headers() });
+  if (!res.ok) throw new Error(`Groepsspellen ophalen mislukt (${res.status})`);
+  return res.json();
+}
+// Toevoegen (of na verwijderen opnieuw toevoegen) en verwijderen voor de hele groep.
+const upsertGroupGame = async (row) => {
+  if (IS_DEMO) {
+    const i = demoGroupGames.findIndex((g) => g.group_code === row.group_code && g.game_key === row.game_key);
+    if (i >= 0) demoGroupGames[i] = { ...demoGroupGames[i], ...row }; else demoGroupGames.push(row);
+    return;
+  }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/group_games?on_conflict=group_code,game_key`, {
+    method: 'POST',
+    headers: headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify(row)
+  });
+  if (!res.ok) throw new Error(`Spel bijwerken in groep mislukt (${res.status})`);
+};
+export const addGroupGame = ({ group, key, name, url, max, by }) =>
+  upsertGroupGame({ group_code: group, game_key: key, name, url, max_score: max || null, added_by: by || null, removed_at: null, removed_by: null });
+export const removeGroupGame = ({ group, key, name, url, by }) =>
+  upsertGroupGame({ group_code: group, game_key: key, name, url, removed_at: new Date().toISOString(), removed_by: by || null });
 
 // Score uit een gedeelde uitslag halen. Voorlopig algemeen; per spel te verfijnen met echte voorbeelden.
 const num = (s) => {
