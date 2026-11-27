@@ -323,23 +323,30 @@ const showBoard = async () => {
   boardList.innerHTML = games.map((g) => {
     const k = gameKey(g);
     const list = rows.filter((r) => r.game === k).sort((a, b) => a.rank - b.rank).slice(0, 5);
-    return `<div class="lb"><h3>${esc(g.name)}</h3>` + (list.length
-      ? '<ol>' + list.map((r, i) => `<li class="${r.player === p.name ? 'me' : ''}" title="${esc(fmtDay(r.day))}"><span class="rk">${i + 1}</span><span class="pn">${esc(r.player)}</span><span class="sc">${nf(r.score)}</span><span class="dt">${esc(fmtDay(r.day))}</span></li>`).join('') + '</ol>'
+    return `<div class="lb"><h3><span class="gt">${esc(g.name)}</span><span class="gd"></span></h3>` + (list.length
+      ? '<ol>' + list.map((r, i) => `<li class="${r.player === p.name ? 'me' : ''}" data-day="${esc(fmtDay(r.day))}"><span class="rk">${i + 1}</span><span class="pn">${esc(r.player)}</span><span class="sc">${nf(r.score)}</span></li>`).join('') + '</ol>'
       : '<p class="none">Nog geen scores</p>') + '</div>';
   }).join('');
 };
 
-// Ingedrukt houden op een score: datum tonen zolang je vasthoudt.
-let peekTimer = null, peekEl = null;
-const endPeek = () => { clearTimeout(peekTimer); if (peekEl) peekEl.classList.remove('peek'); peekEl = null; };
-boardList.addEventListener('pointerdown', (e) => {
+// Tik op een score: die regel licht op en de datum staat bovenin de tegel (boven je duim).
+let peekTimer = null;
+const clearPeek = () => {
+  clearTimeout(peekTimer);
+  boardList.querySelectorAll('.lb.peeking').forEach((t) => t.classList.remove('peeking'));
+  boardList.querySelectorAll('.lb li.peek').forEach((l) => l.classList.remove('peek'));
+};
+boardList.addEventListener('click', (e) => {
   const li = e.target.closest('.lb li');
-  if (!li) return;
-  endPeek();
-  peekTimer = setTimeout(() => { peekEl = li; li.classList.add('peek'); if (navigator.vibrate) try { navigator.vibrate(10); } catch (x) {} }, 350);
+  const was = li && li.classList.contains('peek');
+  clearPeek();
+  if (!li || was) return;
+  const tile = li.closest('.lb');
+  li.classList.add('peek');
+  tile.querySelector('.gd').textContent = li.dataset.day;
+  tile.classList.add('peeking');
+  peekTimer = setTimeout(clearPeek, 4000);
 });
-['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => boardList.addEventListener(t, endPeek));
-boardList.addEventListener('contextmenu', (e) => { if (e.target.closest('.lb li')) e.preventDefault(); });
 
 const showGames = () => setTab('games');
 
