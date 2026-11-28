@@ -82,22 +82,6 @@ const demoForm = (group, since) => {
   });
   return Object.values(out).map(({ sum, nFull, ...o }) => ({ ...o, avg_score: nFull ? Math.round(sum / nFull) : null }));
 };
-const demoWeeks = (group) => {
-  const tot = {};
-  demoRows.filter((r) => r.group_code === group && r.score !== null && DEMO_MAX[r.game]).forEach((r) => {
-    const k = r.player + '|' + r.day;
-    tot[k] = (tot[k] || 0) + Math.min(r.score / DEMO_MAX[r.game], 1) * 100;
-  });
-  const wk = {};
-  Object.entries(tot).forEach(([k, v]) => {
-    const [player, day] = k.split('|');
-    const d = new Date(day + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-    const key = dayStr(d) + '|' + player;
-    const o = wk[key] = wk[key] || { week_start: dayStr(d), player, total: 0, days: 0 };
-    o.total += Math.round(v); o.days++;
-  });
-  return Object.values(wk);
-};
 // In de voorbeeldversie heeft Sanne alvast een spel aan de groep toegevoegd.
 const demoGroupGames = IS_DEMO ? [{ group_code: 'DEMO01', game_key: 'wafflegame.net', name: 'Waffle', url: 'https://wafflegame.net', max_score: 15, added_by: 'Sanne' }] : [];
 const DEMO_MAX = { 'farflung.game': 500, 'krillion.io': 700, 'chainle.io': 5000, 'guessdash.com/extraplot': 5000 };
@@ -166,16 +150,6 @@ export async function loadForm(group, since) {
     method: 'POST', headers: headers(), body: JSON.stringify({ p_group: group, p_since: since || null })
   });
   if (!res.ok) throw new Error(`Onderlinge stand ophalen mislukt (${res.status})`);
-  return res.json();
-}
-
-// Weekstand (functie week_results): opgetelde dagscores per speler per week (maandag t/m zondag).
-export async function loadWeeks(group) {
-  if (IS_DEMO) return demoWeeks(group);
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/week_results`, {
-    method: 'POST', headers: headers(), body: JSON.stringify({ p_group: group })
-  });
-  if (!res.ok) throw new Error(`Weekstand ophalen mislukt (${res.status})`);
   return res.json();
 }
 

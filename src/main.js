@@ -25,7 +25,7 @@ const play = async (url) => {
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
 import { getReminders, setReminders, ensurePermission, reschedule } from './reminders.js';
-import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, loadForm, loadWeeks, loadHistory, loadGroupGames, addGroupGame, removeGroupGame, parseScore, detectGame, isDemo } from './scores.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, loadForm, loadHistory, loadGroupGames, addGroupGame, removeGroupGame, parseScore, detectGame, isDemo } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -151,7 +151,6 @@ const renderDayBar = () => {
         return `<div class="dpl${lead ? ' win' : ''}"><b>${esc(x.name)}${lead && done && !tie ? ' ' + TROPHY : ''}${lead && !done ? ' <span class="st">★</span>' : ''}</b><i>${x.score}</i></div>`;
       }).join('') + '</div>'
     : '<span class="dn">Nog niemand gespeeld vandaag</span>');
-  renderWeekBar();
 };
 
 // ---- Spellen delen met de groep ----
@@ -203,8 +202,8 @@ const refreshHome = async () => {
   syncGroupGames();
   try {
     const day = dayStr();
-    const [rows, weeks] = await Promise.all([loadScores(p.group, day), loadWeeks(p.group).catch(() => home.weeks || [])]);
-    home = { day, rows, records: [], weeks };
+    const rows = await loadScores(p.group, day);
+    home = { day, rows, records: [] };
     try { localStorage.setItem('quickplay-home', JSON.stringify(home)); } catch (e) {}
     if (!drag) render();
     planReminders();
@@ -433,52 +432,6 @@ const formTile = (title, rows, me, isDay, wide, spark = '') => {
   return `<div class="${cls}">${head}<ul class="multi">` + list.map((r) => `<li><b>${esc(r.player)}</b><span>${r.wins} gewonnen</span><span>${avg(r)}</span></li>`).join('') + `</ul>${spark}</div>`;
 };
 
-// ---- Weekwinnaar ----
-const mondayOf = (d = new Date()) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return dayStr(x); };
-const isoWeek = (ds) => {
-  const d = new Date(ds + 'T12:00:00');
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const w1 = new Date(d.getFullYear(), 0, 4);
-  return 1 + Math.round(((d - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7);
-};
-const weekTable = (rows) => {
-  const by = {};
-  (rows || []).forEach((r) => { (by[r.week_start] = by[r.week_start] || []).push({ player: r.player, total: Number(r.total) }); });
-  return Object.entries(by).map(([week, list]) => {
-    list.sort((a, b) => b.total - a.total);
-    const winner = list.length > 1 && list[0].total > list[1].total ? list[0].player : null;
-    return { week, list, winner };
-  }).sort((a, b) => b.week.localeCompare(a.week));
-};
-const weekTile = (rows, me) => {
-  const thisWeek = mondayOf();
-  const all = weekTable(rows);
-  const done = all.filter((w) => w.week < thisWeek);
-  const cur = all.find((w) => w.week === thisWeek);
-  const wins = {};
-  done.forEach((w) => { if (w.winner) wins[w.winner] = (wins[w.winner] || 0) + 1; });
-  const players = [...new Set(all.flatMap((w) => w.list.map((x) => x.player)))];
-  const head = players.length
-    ? '<div class="wk-wins">' + players.sort((a, b) => (wins[b] || 0) - (wins[a] || 0)).map((n) => `<span class="${n === me ? 'me' : ''}"><b>${esc(n)}</b><i>${wins[n] || 0}</i></span>`).join('') + '</div>'
-    : '';
-  const line = (w, label, live) => `<li><span class="wk-n">${label}</span><span class="wk-w">${w.winner ? (live ? esc(w.winner) + ' staat voor' : '♛ ' + esc(w.winner)) : (w.list.length > 1 ? 'Gelijk' : esc(w.list[0].player))}</span><span class="wk-s">${w.list.map((x) => nf(x.total)).join(' – ')}</span></li>`;
-  const body = (cur ? line(cur, 'Deze week', true) : '') + done.slice(0, 4).map((w) => line(w, 'Week ' + isoWeek(w.week))).join('');
-  return `<div class="lb wide wk"><h3><span class="gt">Weken gewonnen</span></h3>${head}` + (body ? `<ol class="wk-list">${body}</ol>` : '<p class="none">Nog geen weken gespeeld</p>') + '</div>';
-};
-const WEEK_SEEN = 'quickplay-week-seen';
-const renderWeekBar = () => {
-  const bar = $('weekbar');
-  if (!bar) return;
-  const p = getProfile();
-  const last = weekTable(home.weeks).find((w) => w.week < mondayOf());
-  let seen = ''; try { seen = localStorage.getItem(WEEK_SEEN) || ''; } catch (e) {}
-  if (!p || editing || !board.hidden || !last || last.list.length < 2 || seen === last.week) { bar.hidden = true; return; }
-  bar.hidden = false;
-  const me = last.winner === p.name;
-  bar.innerHTML = `<span class="wb-cup">${TROPHY}</span><span class="wb-t"><b>Week ${isoWeek(last.week)}: ${last.winner ? (me ? 'jij wint!' : esc(last.winner) + ' wint') : 'gelijkspel'}</b><small>${last.list.map((x) => esc(x.player) + ' ' + nf(x.total)).join(' · ')}</small></span><button type="button" class="x" id="weekX" aria-label="Sluiten">×</button>`;
-  $('weekX').onclick = () => { try { localStorage.setItem(WEEK_SEEN, last.week); } catch (e) {} bar.hidden = true; };
-};
-
 // ---- Verloop: klein lijntje per spel (jij paars, de ander mint) ----
 const sparkline = (series, me, from, to, max) => {
   const players = Object.keys(series);
@@ -539,8 +492,8 @@ const showBoard = async () => {
       }).join('');
     return;
   }
-  let rows, dayTop, weeks;
-  try { [rows, dayTop, weeks] = await Promise.all([loadTop(p.group), loadDayTop(p.group), loadWeeks(p.group)]); }
+  let rows, dayTop;
+  try { [rows, dayTop] = await Promise.all([loadTop(p.group), loadDayTop(p.group)]); }
   catch (x) { boardList.innerHTML = `<p class="msg" style="grid-column:1/-1">Kon de leaderboards niet ophalen. Controleer je internetverbinding.</p>`; return; }
   if (lbView !== 'records') return;
   const today = dayStr();
@@ -550,9 +503,8 @@ const showBoard = async () => {
   const dayTile = `<div class="lb wide"><h3><span class="gt">Dagscore</span><span class="gd"></span></h3>` + (dayTop.length
     ? '<ol>' + dayTop.map((r, i) => row(r, i, nf(r.day_score), spoil(r, null))).join('') + '</ol>'
     : '<p class="none">Nog geen dagscores</p>') + '</div>';
-  home.weeks = weeks;
   // zelfde volgorde als de Spellen-tab
-  boardList.innerHTML = dayTile + weekTile(weeks, p.name) + games.map((g) => {
+  boardList.innerHTML = dayTile + games.map((g) => {
     const k = gameKey(g);
     const list = rows.filter((r) => r.game === k).sort((a, b) => a.rank - b.rank).slice(0, 5);
     return `<div class="lb"><h3><span class="gt">${esc(g.name)}</span><span class="gd"></span></h3>` + (list.length
