@@ -732,7 +732,6 @@ const remaining = () => {
 const updateBell = () => {
   const r = getReminders();
   $('bell').classList.toggle('on', r.on);
-  $('bellDot').hidden = !r.on;
 };
 const planReminders = async () => {
   const plan = await reschedule({ remainingToday: remaining(), totalGames: games.length });
