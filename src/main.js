@@ -491,7 +491,6 @@ const showBoard = async () => {
   $('who').textContent = p ? `${p.name} · ${p.group}` : 'Instellen';
   if (!p) { boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Stel eerst je naam en groepscode in om scores met je vriend te delen.</p>'; openSetup(showBoard); return; }
   syncLbControls();
-  if (!boardList.children.length) boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Leaderboards ophalen…</p>';
   if (lbView === 'form') {
     const since = lbDays ? dayStr(new Date(Date.now() - (lbDays - 1) * 86400000)) : null;
     let form;
@@ -499,8 +498,7 @@ const showBoard = async () => {
     catch (x) { boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Kon de onderlinge stand niet ophalen. Controleer je internetverbinding.</p>'; return; }
     if (lbView !== 'form') return;
     boardList.innerHTML = formTile('Dagscore', form.filter((r) => r.game === '_dagscore'), p.name, true, true, '_dagscore')
-      + games.map((g) => { const k = gameKey(g); return formTile(g.name, form.filter((r) => r.game === k), p.name, false, false, k); }).join('')
-      + '<p class="hint" style="grid-column:1/-1">Houd een tegel ingedrukt voor de trendlijn.</p>';
+      + games.map((g) => { const k = gameKey(g); return formTile(g.name, form.filter((r) => r.game === k), p.name, false, false, k); }).join('');
     return;
   }
   let rows, dayTop;
@@ -751,14 +749,14 @@ const bigChart = (series, me, from, to) => {
     const v = series[n].map((x) => x.v); const avg = Math.round(v.reduce((a, b) => a + b, 0) / v.length);
     return `<span class="${n === me ? 'me' : 'ot'}"><i></i>${esc(n)} <small>gem. ${nf(avg)} · beste ${nf(Math.round(Math.max(...v)))}</small></span>`;
   }).join('');
-  return `<svg class="bigchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verloop van de scores">${ticks}${xl}${lines}</svg><div class="legend">${legend}</div><p class="manote">Lijn: gemiddelde over ${win} dagen · stipjes: losse scores</p>`;
+  return `<svg class="bigchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verloop van de scores">${ticks}${xl}${lines}</svg><div class="legend">${legend}</div>`;
 };
 const openChart = async (g) => {
   const p = getProfile();
   if (!p) return;
   $('chartTitle').textContent = g ? g.name : 'Dagscore';
   $('chartSub').textContent = lbDays ? `laatste ${lbDays} dagen` : 'altijd';
-  $('chartBody').innerHTML = '<p class="none">Laden…</p>';
+  $('chartBody').innerHTML = '';
   chartDlg.showModal();
   const to = dayStr();
   let from = lbDays ? dayStr(new Date(Date.now() - (lbDays - 1) * 86400000)) : null;
