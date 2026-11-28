@@ -395,13 +395,14 @@ $('periods').addEventListener('click', (e) => {
 });
 
 const formTile = (title, rows, me, isDay, wide) => {
-  const list = rows.slice().sort((a, b) => b.wins - a.wins || b.avg_score - a.avg_score);
+  const list = rows.slice().sort((a, b) => b.wins - a.wins || (Number(b.avg_score) || 0) - (Number(a.avg_score) || 0));
   const duels = Math.max(0, ...list.map((r) => r.duels));
   const lead = list.length > 1 && list[0].wins > list[1].wins ? list[0].player : null;
   const head = `<h3><span>${esc(title)}</span>${lead ? `<span class="lead">♛ ${esc(lead)}</span>` : ''}</h3>`;
   const cls = `fm${wide ? ' wide' : ''}`;
   if (!list.length) return `<div class="${cls}">${head}<p class="none">Nog niet gespeeld in deze periode</p></div>`;
-  const avg = (r) => (isDay ? 'gem. ' : 'gem. ') + nf(r.avg_score);
+  // dagscore: gemiddelde alleen over dagen waarop alles gespeeld is (kan dus leeg zijn)
+  const avg = (r) => 'gem. ' + (r.avg_score === null || r.avg_score === undefined ? '–' : nf(r.avg_score));
   if (list.length === 2) {
     // ik links, de ander rechts
     const a = list.find((r) => r.player === me) || list[0], b = list.find((r) => r !== a);
