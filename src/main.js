@@ -149,7 +149,7 @@ const dayScores = () => {
   return { list, done };
 };
 const dayLabel = () => {
-  if (isToday()) return 'Vandaag';
+  if (isToday()) return '';
   if (shownDay === dayStr(new Date(Date.now() - 86400000))) return 'Gisteren';
   return new Date(shownDay + 'T12:00:00').toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 };
@@ -432,12 +432,13 @@ $('periods').addEventListener('click', (e) => {
   lbDays = Number(b.dataset.days); saveLb(); showBoard();
 });
 
-const formTile = (title, rows, me, isDay, wide, spark = '') => {
+const formTile = (title, rows, me, isDay, wide, key = '') => {
+  const spark = '';
   const list = rows.slice().sort((a, b) => b.wins - a.wins || (Number(b.avg_score) || 0) - (Number(a.avg_score) || 0));
   const duels = Math.max(0, ...list.map((r) => r.duels));
   const lead = list.length > 1 && list[0].wins > list[1].wins ? list[0].player : null;
   const head = `<h3><span>${esc(title)}</span>${lead ? `<span class="lead">♛ ${esc(lead)}</span>` : ''}</h3>`;
-  const cls = `fm${wide ? ' wide' : ''}`;
+  const cls = `fm${wide ? ' wide' : ''}" data-chart="${esc(key)}`;
   if (!list.length) return `<div class="${cls}">${head}<p class="none">Nog niet gespeeld in deze periode</p></div>`;
   // dagscore: gemiddelde alleen over dagen waarop alles gespeeld is (kan dus leeg zijn)
   const avg = (r) => 'gem. ' + (r.avg_score === null || r.avg_score === undefined ? '–' : nf(r.avg_score));
@@ -456,26 +457,7 @@ const formTile = (title, rows, me, isDay, wide, spark = '') => {
   return `<div class="${cls}">${head}<ul class="multi">` + list.map((r) => `<li><b>${esc(r.player)}</b><span>${r.wins} gewonnen</span><span>${avg(r)}</span></li>`).join('') + `</ul>${spark}</div>`;
 };
 
-// ---- Verloop: klein lijntje per spel (jij paars, de ander mint) ----
-const sparkline = (series, me, from, to, max) => {
-  const players = Object.keys(series);
-  if (!players.length) return '';
-  const d0 = new Date(from + 'T12:00:00'), span = Math.max(1, Math.round((new Date(to + 'T12:00:00') - d0) / 86400000));
-  // schaal tussen laagste en hoogste score, zodat verschillen goed zichtbaar zijn
-  const vals = players.flatMap((n) => series[n].map((x) => x.v));
-  let lo = Math.min(...vals), hi = Math.max(...vals);
-  if (hi - lo < 1) { lo -= 1; hi += 1; }
-  const W = 300, H = 44, P = 5;
-  const xy = (x) => [P + ((new Date(x.d + 'T12:00:00') - d0) / 86400000 / span) * (W - 2 * P), H - P - ((x.v - lo) / (hi - lo)) * (H - 2 * P)];
-  const order = players.sort((a, b) => (a === me ? 1 : 0) - (b === me ? 1 : 0)); // ik bovenop
-  const lines = order.map((n) => {
-    const pts = series[n].slice().sort((a, b) => a.d.localeCompare(b.d)).map(xy);
-    const cls = n === me ? 'me' : 'ot';
-    return (pts.length > 1 ? `<polyline class="${cls}" points="${pts.map((q) => q.map((v) => v.toFixed(1)).join(',')).join(' ')}"/>` : '')
-      + pts.map((q) => `<circle class="${cls}" cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="1.8"/>`).join('');
-  }).join('');
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Verloop van de scores">${lines}</svg>`;
-};
+// ---- Verloop per speler (voor de grafiek) ----
 const seriesFor = (hist, filter, value) => {
   const out = {};
   hist.filter(filter).forEach((r) => { (out[r.player] = out[r.player] || []).push({ d: r.day, v: value(r) }); });
@@ -492,28 +474,13 @@ const showBoard = async () => {
   if (!boardList.children.length) boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Leaderboards ophalen…</p>';
   if (lbView === 'form') {
     const since = lbDays ? dayStr(new Date(Date.now() - (lbDays - 1) * 86400000)) : null;
-    let form, hist;
-    try { [form, hist] = await Promise.all([loadForm(p.group, since), loadHistory(p.group, since).catch(() => [])]); }
+    let form;
+    try { form = await loadForm(p.group, since); }
     catch (x) { boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Kon de onderlinge stand niet ophalen. Controleer je internetverbinding.</p>'; return; }
     if (lbView !== 'form') return;
-    const to = dayStr(), from = since || (hist.length ? hist.map((r) => r.day).sort()[0] : to);
-    // dagscore per speler per dag uit de losse scores
-    const dayTot = {};
-    hist.forEach((r) => {
-      const g = games.find((x) => gameKey(x) === r.game); const m = g && maxFor(g);
-      if (!m) return;
-      const k = r.player + '|' + r.day;
-      dayTot[k] = (dayTot[k] || 0) + Math.min(Number(r.score) / m, 1) * 100;
-    });
-    const daySeries = {};
-    Object.entries(dayTot).forEach(([k, v]) => { const [n, d] = k.split('|'); (daySeries[n] = daySeries[n] || []).push({ d, v }); });
-    const scoredCount = games.filter((g) => maxFor(g)).length;
-    boardList.innerHTML = formTile('Dagscore', form.filter((r) => r.game === '_dagscore'), p.name, true, true, sparkline(daySeries, p.name, from, to, scoredCount * 100))
-      + games.map((g) => {
-        const k = gameKey(g);
-        const ser = seriesFor(hist, (r) => r.game === k, (r) => Number(r.score));
-        return formTile(g.name, form.filter((r) => r.game === k), p.name, false, false, sparkline(ser, p.name, from, to, maxFor(g) || 0));
-      }).join('');
+    boardList.innerHTML = formTile('Dagscore', form.filter((r) => r.game === '_dagscore'), p.name, true, true, '_dagscore')
+      + games.map((g) => { const k = gameKey(g); return formTile(g.name, form.filter((r) => r.game === k), p.name, false, false, k); }).join('')
+      + '<p class="hint" style="grid-column:1/-1">Houd een tegel ingedrukt voor de trendlijn.</p>';
     return;
   }
   let rows, dayTop;
@@ -680,7 +647,7 @@ const chartDlg = $('chartDlg');
 const bigChart = (series, me, from, to) => {
   const players = Object.keys(series);
   const vals = players.flatMap((n) => series[n].map((x) => x.v));
-  if (!vals.length) return '<p class="none">Nog geen scores in de afgelopen 30 dagen.</p>';
+  if (!vals.length) return '<p class="none">Nog geen scores in deze periode.</p>';
   let lo = Math.min(...vals), hi = Math.max(...vals);
   if (hi - lo < 1) { lo -= 1; hi += 1; }
   const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
@@ -700,17 +667,20 @@ const bigChart = (series, me, from, to) => {
     const v = series[n].map((x) => x.v); const avg = Math.round(v.reduce((a, b) => a + b, 0) / v.length);
     return `<span class="${n === me ? 'me' : 'ot'}"><i></i>${esc(n)} <small>gem. ${nf(avg)} · beste ${nf(Math.round(Math.max(...v)))}</small></span>`;
   }).join('');
-  return `<svg class="bigchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Scores van de laatste 30 dagen">${ticks}${xl}${lines}</svg><div class="legend">${legend}</div>`;
+  return `<svg class="bigchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verloop van de scores">${ticks}${xl}${lines}</svg><div class="legend">${legend}</div>`;
 };
 const openChart = async (g) => {
   const p = getProfile();
   if (!p) return;
   $('chartTitle').textContent = g ? g.name : 'Dagscore';
+  $('chartSub').textContent = lbDays ? `laatste ${lbDays} dagen` : 'altijd';
   $('chartBody').innerHTML = '<p class="none">Laden…</p>';
   chartDlg.showModal();
-  const to = dayStr(), from = dayStr(new Date(Date.now() - 29 * 86400000));
+  const to = dayStr();
+  let from = lbDays ? dayStr(new Date(Date.now() - (lbDays - 1) * 86400000)) : null;
   let hist = [];
   try { hist = await loadHistory(p.group, from); } catch (e) { $('chartBody').innerHTML = '<p class="none">Kon de scores niet ophalen.</p>'; return; }
+  if (!from) from = hist.length ? hist.map((r) => r.day).sort()[0] : to;
   // geen spoilers: scores van anderen van vandaag weglaten als je zelf nog niet (alles) gespeeld hebt
   const hideToday = (r, k) => r.day === to && r.player !== p.name && (k ? !iPlayed(k) : !iDoneAll());
   let series = {};
@@ -734,17 +704,19 @@ chartDlg.addEventListener('click', (e) => { if (e.target === chartDlg) chartDlg.
 // ingedrukt houden (zonder te scrollen) op een spelkaart of het dagscore-blok
 let lp = null, lpFired = false;
 const lpStart = (e, target) => {
-  if (editing || e.target.closest('[data-grip],[data-del],button')) return;
+  if (e.target.closest('button')) return;
   lpFired = false;
   lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { lpFired = true; lp = null; try { navigator.vibrate && navigator.vibrate(12); } catch (x) {} openChart(target()); }, 450) };
 };
 const lpCancel = (e) => { if (!lp) return; if (e && e.type === 'pointermove' && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) < 10) return; clearTimeout(lp.t); lp = null; };
-grid.addEventListener('pointerdown', (e) => { const c = e.target.closest('.card'); if (c) lpStart(e, () => games[+c.dataset.idx]); });
-$('daybar').addEventListener('pointerdown', (e) => { if (!e.target.closest('.dnav')) lpStart(e, () => null); });
-['pointermove', 'pointerup', 'pointercancel', 'pointerleave'].forEach((t) => { grid.addEventListener(t, lpCancel); $('daybar').addEventListener(t, lpCancel); });
-['contextmenu'].forEach((t) => { grid.addEventListener(t, (e) => { if (e.target.closest('.card')) e.preventDefault(); }); $('daybar').addEventListener(t, (e) => e.preventDefault()); });
-// klik na ingedrukt houden niet als 'spel openen' tellen
-grid.addEventListener('click', (e) => { if (lpFired) { e.stopImmediatePropagation(); e.preventDefault(); lpFired = false; } }, true);
+boardList.addEventListener('pointerdown', (e) => {
+  const t = e.target.closest('.fm[data-chart]');
+  if (!t || lbView !== 'form') return;
+  const k = t.dataset.chart;
+  lpStart(e, () => (k === '_dagscore' ? null : games.find((g) => gameKey(g) === k)));
+});
+['pointermove', 'pointerup', 'pointercancel', 'pointerleave'].forEach((t) => boardList.addEventListener(t, lpCancel));
+boardList.addEventListener('contextmenu', (e) => { if (e.target.closest('.fm')) e.preventDefault(); });
 $('daybar').addEventListener('click', (e) => {
   const b = e.target.closest('[data-day]');
   if (b && !b.disabled) goDay(Number(b.dataset.day));

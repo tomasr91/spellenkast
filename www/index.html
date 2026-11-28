@@ -178,20 +178,16 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;pa
 .daybar .dpl i .hid{font-size:28px;color:#cbbfa8}
 .ts.done{color:var(--mute)}
 .ts.done i{font-size:15px;color:#2f8f6a;font-weight:800}
-.spark{display:block;width:100%;height:44px;margin-top:10px;overflow:visible}
-.spark polyline{fill:none;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
-.spark .me{stroke:var(--purple);fill:var(--purple)}
-.spark .ot{stroke:var(--mint);fill:var(--mint)}
-.spark polyline.me,.spark polyline.ot{fill:none}
 .toast.info{background:#2f8f6a}
 
 /* Dag terugbladeren + grafiek */
 .dnav{display:flex;align-items:center;justify-content:space-between;margin:-4px -6px 4px}
-.dnav span{font-size:13px;font-weight:600;color:var(--mute)}
+.dnav span{font-size:13px;font-weight:600;color:var(--mute);min-height:16px}
 .dnav button{width:36px;height:32px;border:0;border-radius:8px;background:transparent;color:var(--purple);font-size:22px;line-height:1;cursor:pointer}
 .dnav button:disabled{opacity:.25;cursor:default}
-.daybar{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.card{-webkit-touch-callout:none}
+.fm{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:pointer}
+.fm:active{transform:scale(.99)}
+.hint{color:var(--mute);font-size:13px;text-align:center;margin:2px 0 0}
 dialog.chart{width:min(440px,94vw);padding:16px 16px 14px}
 .chead{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
 .chead h2{margin:0;font-size:20px;font-weight:600;color:var(--purple)}
@@ -324,7 +320,7 @@ input:focus{outline:none;border-color:var(--gold)}
 </dialog>
 
 <dialog id="chartDlg" class="chart">
-  <div class="chead"><h2 id="chartTitle">Grafiek</h2><span class="csub">laatste 30 dagen</span><button type="button" class="x" id="chartClose" aria-label="Sluiten">×</button></div>
+  <div class="chead"><h2 id="chartTitle">Grafiek</h2><span class="csub" id="chartSub"></span><button type="button" class="x" id="chartClose" aria-label="Sluiten">×</button></div>
   <div id="chartBody"></div>
 </dialog>
 
