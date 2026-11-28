@@ -708,6 +708,22 @@ window.addEventListener('focus', () => setTimeout(offerScore, 300));
 render();
 // ---------------- Grafiek bij ingedrukt houden ----------------
 const chartDlg = $('chartDlg');
+// Voortschrijdend gemiddelde per speler over 'win' kalenderdagen (alleen dagen waarop gespeeld is).
+const movingAvg = (pts, win) => {
+  const sorted = pts.slice().sort((a, b) => a.d.localeCompare(b.d));
+  return sorted.map((x) => {
+    const end = new Date(x.d + 'T12:00:00'), start = new Date(end); start.setDate(start.getDate() - (win - 1));
+    const s0 = dayStr(start);
+    const inWin = sorted.filter((y) => y.d >= s0 && y.d <= x.d);
+    return { d: x.d, v: inWin.reduce((a, b) => a + b.v, 0) / inWin.length };
+  });
+};
+const maWindow = (from, to) => {
+  if (lbDays === 7) return 3;
+  if (lbDays === 30) return 7;
+  const span = Math.round((new Date(to + 'T12:00:00') - new Date(from + 'T12:00:00')) / 86400000) + 1;
+  return Math.max(7, Math.min(30, Math.round(span / 8)));
+};
 const bigChart = (series, me, from, to) => {
   const players = Object.keys(series);
   const vals = players.flatMap((n) => series[n].map((x) => x.v));
@@ -721,17 +737,21 @@ const bigChart = (series, me, from, to) => {
   const Y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
   const ticks = [lo + pad, (lo + hi) / 2, hi - pad].map((v) => `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" class="g"/><text x="${L - 6}" y="${(Y(v) + 4).toFixed(1)}" class="yl">${nf(Math.round(v))}</text>`).join('');
   const xl = [from, to].map((d, i) => `<text x="${i ? W - R : L}" y="${H - 4}" class="xl" text-anchor="${i ? 'end' : 'start'}">${esc(new Date(d + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }))}</text>`).join('');
+  // losse scores als lichte stipjes, lijn = voortschrijdend gemiddelde
+  const win = maWindow(from, to);
   const lines = players.sort((a, b) => (a === me ? 1 : 0) - (b === me ? 1 : 0)).map((n) => {
     const pts = series[n].slice().sort((a, b) => a.d.localeCompare(b.d));
+    const ma = movingAvg(pts, win);
     const cls = n === me ? 'me' : 'ot';
-    return (pts.length > 1 ? `<polyline class="${cls}" points="${pts.map((x) => X(x.d).toFixed(1) + ',' + Y(x.v).toFixed(1)).join(' ')}"/>` : '')
-      + pts.map((x) => `<circle class="${cls}" cx="${X(x.d).toFixed(1)}" cy="${Y(x.v).toFixed(1)}" r="3"/>`).join('');
+    return pts.map((x) => `<circle class="${cls} raw" cx="${X(x.d).toFixed(1)}" cy="${Y(x.v).toFixed(1)}" r="2.4"/>`).join('')
+      + (ma.length > 1 ? `<polyline class="${cls}" points="${ma.map((x) => X(x.d).toFixed(1) + ',' + Y(x.v).toFixed(1)).join(' ')}"/>` : '')
+      + (ma.length ? `<circle class="${cls}" cx="${X(ma[ma.length - 1].d).toFixed(1)}" cy="${Y(ma[ma.length - 1].v).toFixed(1)}" r="3.5"/>` : '');
   }).join('');
   const legend = players.sort((a, b) => (a === me ? -1 : 0) - (b === me ? -1 : 0)).map((n) => {
     const v = series[n].map((x) => x.v); const avg = Math.round(v.reduce((a, b) => a + b, 0) / v.length);
     return `<span class="${n === me ? 'me' : 'ot'}"><i></i>${esc(n)} <small>gem. ${nf(avg)} · beste ${nf(Math.round(Math.max(...v)))}</small></span>`;
   }).join('');
-  return `<svg class="bigchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verloop van de scores">${ticks}${xl}${lines}</svg><div class="legend">${legend}</div>`;
+  return `<svg class="bigchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verloop van de scores">${ticks}${xl}${lines}</svg><div class="legend">${legend}</div><p class="manote">Lijn: gemiddelde over ${win} dagen · stipjes: losse scores</p>`;
 };
 const openChart = async (g) => {
   const p = getProfile();
