@@ -25,7 +25,7 @@ const play = async (url) => {
 
 import { metaFor, faviconFor, hostOf } from './catalog.js';
 import { getReminders, setReminders, ensurePermission, reschedule } from './reminders.js';
-import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, loadForm, loadGroupGames, addGroupGame, removeGroupGame, parseScore, detectGame, isDemo } from './scores.js';
+import { getProfile, setProfile, newGroupCode, dayStr, saveScore, loadScores, loadTop, loadDayTop, loadForm, loadWeeks, loadHistory, loadGroupGames, addGroupGame, removeGroupGame, parseScore, detectGame, isDemo } from './scores.js';
 
 const KEY = 'spellenkast-v1';
 const DEFAULT = [
@@ -91,14 +91,23 @@ try { const c = JSON.parse(localStorage.getItem('quickplay-home')); if (c && c.r
 const nf = (n) => Number(n).toLocaleString('nl-NL');
 const todayRows = () => (home.day === dayStr() ? home.rows : []);
 
+// Geen spoilers: scores van anderen zie je pas als je dat spel vandaag zelf gespeeld hebt.
+const iPlayed = (k) => { const p = getProfile(); return !!p && todayRows().some((r) => r.player === p.name && r.game === k && r.score !== null && r.score !== undefined); };
+const iDoneAll = () => { const sc = games.filter((g) => maxFor(g)); return sc.length > 0 && sc.every((g) => iPlayed(gameKey(g))); };
+const HIDDEN = '<span class="hid" title="Zie je als je zelf gespeeld hebt">•••</span>';
+
 const cardStats = (g) => {
   const p = getProfile();
   if (!p) return '';
   const k = gameKey(g);
-  const top = todayRows().filter((r) => r.game === k && r.score !== null && r.score !== undefined)
-    .sort((a, b) => Number(b.score) - Number(a.score)).slice(0, 2);
+  const all = todayRows().filter((r) => r.game === k && r.score !== null && r.score !== undefined);
+  if (!all.length) return '';
+  if (!iPlayed(k)) {
+    // nog niet zelf gespeeld: alleen wie al gespeeld heeft, zonder score
+    return '<span class="stats">' + all.slice(0, 2).map((r) => `<span class="ts done" title="Gespeeld; score zie je als je zelf gespeeld hebt"><b>${esc(r.player)}</b><i>✓</i></span>`).join('') + '</span>';
+  }
+  const top = all.sort((a, b) => Number(b.score) - Number(a.score)).slice(0, 2);
   const best = top.length > 1 ? Number(top[0].score) : null;
-  if (!top.length) return '';
   return '<span class="stats">' + top.map((r) => `<span class="ts${Number(r.score) === best ? ' win' : ''}"><b>${esc(r.player)}</b><i>${nf(r.score)}</i></span>`).join('') + '</span>';
 };
 
@@ -131,12 +140,18 @@ const renderDayBar = () => {
   const tie = list.length > 1 && list[0].score === list[1].score;
   bar.hidden = false;
   bar.classList.toggle('final', done);
+  // geen spoilers: dagscore van anderen pas zichtbaar als jij ook alles gespeeld hebt
+  const open = iDoneAll();
+  bar.classList.toggle('final', done && open);
   bar.innerHTML = (list.length
     ? '<div class="dp">' + list.map((x) => {
-        const lead = x.score === top;
+        const mine = x.name === p.name;
+        if (!open && !mine) return `<div class="dpl"><b>${esc(x.name)}</b><i>${HIDDEN}</i></div>`;
+        const lead = open && x.score === top;
         return `<div class="dpl${lead ? ' win' : ''}"><b>${esc(x.name)}${lead && done && !tie ? ' ' + TROPHY : ''}${lead && !done ? ' <span class="st">★</span>' : ''}</b><i>${x.score}</i></div>`;
       }).join('') + '</div>'
     : '<span class="dn">Nog niemand gespeeld vandaag</span>');
+  renderWeekBar();
 };
 
 // ---- Spellen delen met de groep ----
@@ -188,8 +203,8 @@ const refreshHome = async () => {
   syncGroupGames();
   try {
     const day = dayStr();
-    const rows = await loadScores(p.group, day);
-    home = { day, rows, records: [] };
+    const [rows, weeks] = await Promise.all([loadScores(p.group, day), loadWeeks(p.group).catch(() => home.weeks || [])]);
+    home = { day, rows, records: [], weeks };
     try { localStorage.setItem('quickplay-home', JSON.stringify(home)); } catch (e) {}
     if (!drag) render();
     planReminders();
@@ -394,7 +409,7 @@ $('periods').addEventListener('click', (e) => {
   lbDays = Number(b.dataset.days); saveLb(); showBoard();
 });
 
-const formTile = (title, rows, me, isDay, wide) => {
+const formTile = (title, rows, me, isDay, wide, spark = '') => {
   const list = rows.slice().sort((a, b) => b.wins - a.wins || (Number(b.avg_score) || 0) - (Number(a.avg_score) || 0));
   const duels = Math.max(0, ...list.map((r) => r.duels));
   const lead = list.length > 1 && list[0].wins > list[1].wins ? list[0].player : null;
@@ -412,10 +427,82 @@ const formTile = (title, rows, me, isDay, wide) => {
       + `<div class="duel"><div class="who${lead === a.player ? ' lead' : ''}"><b>${esc(a.player)}</b><i>${a.wins}</i></div>`
       + `<div class="bar" role="img" aria-label="${esc(a.player)} ${a.wins}, gelijk ${ties}, ${esc(b.player)} ${b.wins}">${total ? `<span class="a" style="width:${pct(a.wins)}%"></span><span class="t" style="width:${pct(ties)}%"></span><span class="b" style="width:${pct(b.wins)}%"></span>` : ''}</div>`
       + `<div class="who r${lead === b.player ? ' lead' : ''}"><b>${esc(b.player)}</b><i>${b.wins}</i></div></div>`
-      + `<div class="avg"><span>${avg(a)}</span><span>${duels} ${duels === 1 ? 'duel' : 'duels'}${ties ? ` · ${ties} gelijk` : ''}</span><span>${avg(b)}</span></div></div>`;
+      + `<div class="avg"><span>${avg(a)}</span><span>${duels} ${duels === 1 ? 'duel' : 'duels'}${ties ? ` · ${ties} gelijk` : ''}</span><span>${avg(b)}</span></div>${spark}</div>`;
   }
   // één speler of meer dan twee: lijstje
-  return `<div class="${cls}">${head}<ul class="multi">` + list.map((r) => `<li><b>${esc(r.player)}</b><span>${r.wins} gewonnen</span><span>${avg(r)}</span></li>`).join('') + '</ul></div>';
+  return `<div class="${cls}">${head}<ul class="multi">` + list.map((r) => `<li><b>${esc(r.player)}</b><span>${r.wins} gewonnen</span><span>${avg(r)}</span></li>`).join('') + `</ul>${spark}</div>`;
+};
+
+// ---- Weekwinnaar ----
+const mondayOf = (d = new Date()) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return dayStr(x); };
+const isoWeek = (ds) => {
+  const d = new Date(ds + 'T12:00:00');
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const w1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7);
+};
+const weekTable = (rows) => {
+  const by = {};
+  (rows || []).forEach((r) => { (by[r.week_start] = by[r.week_start] || []).push({ player: r.player, total: Number(r.total) }); });
+  return Object.entries(by).map(([week, list]) => {
+    list.sort((a, b) => b.total - a.total);
+    const winner = list.length > 1 && list[0].total > list[1].total ? list[0].player : null;
+    return { week, list, winner };
+  }).sort((a, b) => b.week.localeCompare(a.week));
+};
+const weekTile = (rows, me) => {
+  const thisWeek = mondayOf();
+  const all = weekTable(rows);
+  const done = all.filter((w) => w.week < thisWeek);
+  const cur = all.find((w) => w.week === thisWeek);
+  const wins = {};
+  done.forEach((w) => { if (w.winner) wins[w.winner] = (wins[w.winner] || 0) + 1; });
+  const players = [...new Set(all.flatMap((w) => w.list.map((x) => x.player)))];
+  const head = players.length
+    ? '<div class="wk-wins">' + players.sort((a, b) => (wins[b] || 0) - (wins[a] || 0)).map((n) => `<span class="${n === me ? 'me' : ''}"><b>${esc(n)}</b><i>${wins[n] || 0}</i></span>`).join('') + '</div>'
+    : '';
+  const line = (w, label, live) => `<li><span class="wk-n">${label}</span><span class="wk-w">${w.winner ? (live ? esc(w.winner) + ' staat voor' : '♛ ' + esc(w.winner)) : (w.list.length > 1 ? 'Gelijk' : esc(w.list[0].player))}</span><span class="wk-s">${w.list.map((x) => nf(x.total)).join(' – ')}</span></li>`;
+  const body = (cur ? line(cur, 'Deze week', true) : '') + done.slice(0, 4).map((w) => line(w, 'Week ' + isoWeek(w.week))).join('');
+  return `<div class="lb wide wk"><h3><span class="gt">Weken gewonnen</span></h3>${head}` + (body ? `<ol class="wk-list">${body}</ol>` : '<p class="none">Nog geen weken gespeeld</p>') + '</div>';
+};
+const WEEK_SEEN = 'quickplay-week-seen';
+const renderWeekBar = () => {
+  const bar = $('weekbar');
+  if (!bar) return;
+  const p = getProfile();
+  const last = weekTable(home.weeks).find((w) => w.week < mondayOf());
+  let seen = ''; try { seen = localStorage.getItem(WEEK_SEEN) || ''; } catch (e) {}
+  if (!p || editing || !board.hidden || !last || last.list.length < 2 || seen === last.week) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const me = last.winner === p.name;
+  bar.innerHTML = `<span class="wb-cup">${TROPHY}</span><span class="wb-t"><b>Week ${isoWeek(last.week)}: ${last.winner ? (me ? 'jij wint!' : esc(last.winner) + ' wint') : 'gelijkspel'}</b><small>${last.list.map((x) => esc(x.player) + ' ' + nf(x.total)).join(' · ')}</small></span><button type="button" class="x" id="weekX" aria-label="Sluiten">×</button>`;
+  $('weekX').onclick = () => { try { localStorage.setItem(WEEK_SEEN, last.week); } catch (e) {} bar.hidden = true; };
+};
+
+// ---- Verloop: klein lijntje per spel (jij paars, de ander mint) ----
+const sparkline = (series, me, from, to, max) => {
+  const players = Object.keys(series);
+  if (!players.length) return '';
+  const d0 = new Date(from + 'T12:00:00'), span = Math.max(1, Math.round((new Date(to + 'T12:00:00') - d0) / 86400000));
+  // schaal tussen laagste en hoogste score, zodat verschillen goed zichtbaar zijn
+  const vals = players.flatMap((n) => series[n].map((x) => x.v));
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (hi - lo < 1) { lo -= 1; hi += 1; }
+  const W = 300, H = 44, P = 5;
+  const xy = (x) => [P + ((new Date(x.d + 'T12:00:00') - d0) / 86400000 / span) * (W - 2 * P), H - P - ((x.v - lo) / (hi - lo)) * (H - 2 * P)];
+  const order = players.sort((a, b) => (a === me ? 1 : 0) - (b === me ? 1 : 0)); // ik bovenop
+  const lines = order.map((n) => {
+    const pts = series[n].slice().sort((a, b) => a.d.localeCompare(b.d)).map(xy);
+    const cls = n === me ? 'me' : 'ot';
+    return (pts.length > 1 ? `<polyline class="${cls}" points="${pts.map((q) => q.map((v) => v.toFixed(1)).join(',')).join(' ')}"/>` : '')
+      + pts.map((q) => `<circle class="${cls}" cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="1.8"/>`).join('');
+  }).join('');
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Verloop van de scores">${lines}</svg>`;
+};
+const seriesFor = (hist, filter, value) => {
+  const out = {};
+  hist.filter(filter).forEach((r) => { (out[r.player] = out[r.player] || []).push({ d: r.day, v: value(r) }); });
+  return out;
 };
 
 const fmtDay = (d) => new Date(d + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -428,29 +515,48 @@ const showBoard = async () => {
   if (!boardList.children.length) boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Leaderboards ophalen…</p>';
   if (lbView === 'form') {
     const since = lbDays ? dayStr(new Date(Date.now() - (lbDays - 1) * 86400000)) : null;
-    let form;
-    try { form = await loadForm(p.group, since); }
+    let form, hist;
+    try { [form, hist] = await Promise.all([loadForm(p.group, since), loadHistory(p.group, since).catch(() => [])]); }
     catch (x) { boardList.innerHTML = '<p class="msg" style="grid-column:1/-1">Kon de onderlinge stand niet ophalen. Controleer je internetverbinding.</p>'; return; }
     if (lbView !== 'form') return;
-    boardList.innerHTML = formTile('Dagscore', form.filter((r) => r.game === '_dagscore'), p.name, true, true)
-      + games.map((g) => formTile(g.name, form.filter((r) => r.game === gameKey(g)), p.name, false, false)).join('');
+    const to = dayStr(), from = since || (hist.length ? hist.map((r) => r.day).sort()[0] : to);
+    // dagscore per speler per dag uit de losse scores
+    const dayTot = {};
+    hist.forEach((r) => {
+      const g = games.find((x) => gameKey(x) === r.game); const m = g && maxFor(g);
+      if (!m) return;
+      const k = r.player + '|' + r.day;
+      dayTot[k] = (dayTot[k] || 0) + Math.min(Number(r.score) / m, 1) * 100;
+    });
+    const daySeries = {};
+    Object.entries(dayTot).forEach(([k, v]) => { const [n, d] = k.split('|'); (daySeries[n] = daySeries[n] || []).push({ d, v }); });
+    const scoredCount = games.filter((g) => maxFor(g)).length;
+    boardList.innerHTML = formTile('Dagscore', form.filter((r) => r.game === '_dagscore'), p.name, true, true, sparkline(daySeries, p.name, from, to, scoredCount * 100))
+      + games.map((g) => {
+        const k = gameKey(g);
+        const ser = seriesFor(hist, (r) => r.game === k, (r) => Number(r.score));
+        return formTile(g.name, form.filter((r) => r.game === k), p.name, false, false, sparkline(ser, p.name, from, to, maxFor(g) || 0));
+      }).join('');
     return;
   }
-  let rows, dayTop;
-  try { [rows, dayTop] = await Promise.all([loadTop(p.group), loadDayTop(p.group)]); }
+  let rows, dayTop, weeks;
+  try { [rows, dayTop, weeks] = await Promise.all([loadTop(p.group), loadDayTop(p.group), loadWeeks(p.group)]); }
   catch (x) { boardList.innerHTML = `<p class="msg" style="grid-column:1/-1">Kon de leaderboards niet ophalen. Controleer je internetverbinding.</p>`; return; }
   if (lbView !== 'records') return;
-  const row = (r, i, val) => `<li class="${r.player === p.name ? 'me' : ''}" data-day="${esc(fmtDay(r.day))}"><span class="rk">${i + 1}</span><span class="pn">${esc(r.player)}</span><span class="sc">${val}</span></li>`;
+  const today = dayStr();
+  const row = (r, i, val, hide) => `<li class="${r.player === p.name ? 'me' : ''}" data-day="${esc(fmtDay(r.day))}"><span class="rk">${i + 1}</span><span class="pn">${esc(r.player)}</span><span class="sc">${hide ? HIDDEN : val}</span></li>`;
+  const spoil = (r, k) => r.day === today && r.player !== p.name && (k ? !iPlayed(k) : !iDoneAll());
   // brede tegel bovenaan: hoogste dagscores ooit
   const dayTile = `<div class="lb wide"><h3><span class="gt">Dagscore</span><span class="gd"></span></h3>` + (dayTop.length
-    ? '<ol>' + dayTop.map((r, i) => row(r, i, nf(r.day_score))).join('') + '</ol>'
+    ? '<ol>' + dayTop.map((r, i) => row(r, i, nf(r.day_score), spoil(r, null))).join('') + '</ol>'
     : '<p class="none">Nog geen dagscores</p>') + '</div>';
+  home.weeks = weeks;
   // zelfde volgorde als de Spellen-tab
-  boardList.innerHTML = dayTile + games.map((g) => {
+  boardList.innerHTML = dayTile + weekTile(weeks, p.name) + games.map((g) => {
     const k = gameKey(g);
     const list = rows.filter((r) => r.game === k).sort((a, b) => a.rank - b.rank).slice(0, 5);
     return `<div class="lb"><h3><span class="gt">${esc(g.name)}</span><span class="gd"></span></h3>` + (list.length
-      ? '<ol>' + list.map((r, i) => row(r, i, nf(r.score))).join('') + '</ol>'
+      ? '<ol>' + list.map((r, i) => row(r, i, nf(r.score), spoil(r, k))).join('') + '</ol>'
       : '<p class="none">Nog geen scores</p>') + '</div>';
   }).join('');
 };
@@ -525,19 +631,44 @@ scoreForm.addEventListener('submit', async (e) => {
     await saveScore({ group: p.group, player: p.name, game: gameKey(g), day: dayStr(), score, result: stext.value.trim().slice(0, 2000) || null });
     scoreDlg.close();
     viewDay = dayStr();
-    refreshHome();
+    await refreshHome();
     showBoard();
+    announceRecord(g);
   } catch (x) {
     scoreErr.textContent = 'Opslaan lukte niet. ' + x.message;
   } finally { btn.disabled = false; btn.textContent = 'Opslaan'; }
 });
 
+// Nieuw record: kom je met deze score in een top 5 (spel of dagscore), dan zie je meteen welke plek.
+const announceRecord = async (g) => {
+  const p = getProfile();
+  if (!p) return;
+  try {
+    const today = dayStr(), k = gameKey(g);
+    const [top, dayTop] = await Promise.all([loadTop(p.group), loadDayTop(p.group)]);
+    const mine = top.find((r) => r.game === k && r.player === p.name && r.day === today);
+    const myDay = iDoneAll() ? dayTop.find((r) => r.player === p.name && r.day === today) : null;
+    const parts = [];
+    if (mine) parts.push(Number(mine.rank) === 1 ? `Nieuw record bij ${g.name}!` : `Plek ${mine.rank} in de top 5 van ${g.name}`);
+    if (myDay) parts.push(Number(myDay.rank) === 1 ? 'en je hoogste dagscore ooit!' : `dagscore op plek ${myDay.rank}`);
+    if (parts.length) showInfo('🎉 ' + parts.join(' · '));
+  } catch (e) {}
+};
+const showInfo = (text) => {
+  $('toastText').textContent = text;
+  $('toastGo').hidden = true;
+  toast.hidden = false; toast.classList.add('info');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 6000);
+};
+
 // Na een spel: vraag of je je score wilt toevoegen.
 let toastTimer = null;
-function hideToast() { toast.hidden = true; clearTimeout(toastTimer); }
+function hideToast() { toast.hidden = true; toast.classList.remove('info'); $('toastGo').hidden = false; clearTimeout(toastTimer); }
 const offerScore = () => {
   if (!lastGame || Date.now() - lastGame.t < 4000) return;
   const g = lastGame.g; lastGame = null;
+  $('toastGo').hidden = false; toast.classList.remove('info');
   $('toastText').textContent = `${g.name} gespeeld?`;
   toast.hidden = false;
   $('toastGo').onclick = () => { hideToast(); openScore(g); };
