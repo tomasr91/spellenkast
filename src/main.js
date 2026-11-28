@@ -163,8 +163,8 @@ const renderDayBar = () => {
   const tie = list.length > 1 && list[0].score === list[1].score;
   bar.hidden = false;
   bar.classList.toggle('final', done);
-  // geen spoilers: dagscore van anderen pas zichtbaar als jij ook alles gespeeld hebt (alleen vandaag)
-  const open = !isToday() || iDoneAll();
+  // dagscore is altijd zichtbaar (geen spoilerregel); alleen scores per spel worden verborgen
+  const open = true;
   bar.classList.toggle('final', done && open);
   bar.innerHTML = dayNav() + (list.length
     ? '<div class="dp">' + list.map((x) => {
@@ -507,7 +507,7 @@ const showBoard = async () => {
   if (lbView !== 'records') return;
   const today = dayStr();
   const row = (r, i, val, hide) => `<li class="${r.player === p.name ? 'me' : ''}" data-day="${esc(fmtDay(r.day))}"><span class="rk">${i + 1}</span><span class="pn">${esc(r.player)}</span><span class="sc">${hide ? HIDDEN : val}</span></li>`;
-  const spoil = (r, k) => r.day === today && r.player !== p.name && (k ? !iPlayed(k) : !iDoneAll());
+  const spoil = (r, k) => !!k && r.day === today && r.player !== p.name && !iPlayed(k); // dagscore nooit verbergen
   // brede tegel bovenaan: hoogste dagscores ooit
   const dayTile = `<div class="lb wide"><h3><span class="gt">Dagscore</span><span class="gd"></span></h3>` + (dayTop.length
     ? '<ol>' + dayTop.map((r, i) => row(r, i, nf(r.day_score), spoil(r, null))).join('') + '</ol>'
@@ -764,7 +764,7 @@ const openChart = async (g) => {
   try { hist = await loadHistory(p.group, from); } catch (e) { $('chartBody').innerHTML = '<p class="none">Kon de scores niet ophalen.</p>'; return; }
   if (!from) from = hist.length ? hist.map((r) => r.day).sort()[0] : to;
   // geen spoilers: scores van anderen van vandaag weglaten als je zelf nog niet (alles) gespeeld hebt
-  const hideToday = (r, k) => r.day === to && r.player !== p.name && (k ? !iPlayed(k) : !iDoneAll());
+  const hideToday = (r, k) => !!k && r.day === to && r.player !== p.name && !iPlayed(k);
   let series = {};
   if (g) {
     const k = gameKey(g);
