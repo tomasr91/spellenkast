@@ -78,7 +78,7 @@ const card = (g, i) => {
   return `<div class="card" role="button" tabindex="0" data-idx="${i}" aria-label="Speel ${esc(g.name)}">`
     + `<button class="del" type="button" data-del="${i}" aria-label="Verwijder ${esc(g.name)}">×</button>`
     + `<div class="art" style="--pbg:${bg}">${img}</div>`
-    + `<div class="info"><span class="name">${esc(g.name)}</span>${cardStats(g)}</div>`
+    + `<div class="info"><span class="name">${g.isNew ? '<span class="newtag">Nieuw</span>' : ''}${esc(g.name)}${g.isNew && g.addedBy ? `<span class="newby">van ${esc(g.addedBy)}</span>` : ''}</span>${cardStats(g)}</div>`
     + `<span class="grip" data-grip aria-label="Versleep ${esc(g.name)}">${GRIP}</span></div>`;
 };
 
@@ -171,9 +171,11 @@ const renderDayBar = () => {
         const mine = x.name === p.name;
         if (!open && !mine) return `<div class="dpl"><b>${esc(x.name)}</b><i>${HIDDEN}</i></div>`;
         const lead = open && x.score === top;
-        return `<div class="dpl${lead ? ' win' : ''}"><b>${esc(x.name)}${lead && done && !tie ? ' ' + TROPHY : ''}${lead && !done ? ' <span class="st">★</span>' : ''}</b><i>${x.score}</i></div>`;
+        return `<div class="dpl${lead ? ' win' : ''}"><b>${esc(x.name)}${lead && done && !tie ? ' ' + TROPHY : ''}${lead && !done ? ' <span class="st">★</span>' : ''}</b><i data-to="${x.score}" data-key="${esc(shownDay + '|' + x.name)}">${shownScore[shownDay + '|' + x.name] ?? x.score}</i></div>`;
       }).join('') + '</div>'
     : `<span class="dn">${isToday() ? 'Nog niemand gespeeld vandaag' : 'Die dag speelde niemand'}</span>`);
+  countUp();
+  maybeCelebrateDay(done, open, list.length > 1 && !tie ? list[0].name : null);
 };
 
 // ---- Spellen delen met de groep ----
@@ -211,6 +213,7 @@ const syncGroupGames = async () => {
       if (!mine) {
         const g = { name: r.name, url: r.url };
         if (r.max_score) g.max = Number(r.max_score);
+        if (r.added_by && r.added_by !== p.name) { g.isNew = true; g.addedBy = r.added_by; }
         games.push(g); changed = true;
       } else if (!mine.max && r.max_score && !metaFor(mine)) { mine.max = Number(r.max_score); changed = true; }
     });
@@ -219,10 +222,25 @@ const syncGroupGames = async () => {
   finally { syncing = false; }
 };
 
+// Bolletje op Leaderboards: iemand anders heeft een score opgeslagen sinds je daar laatst keek.
+const LB_SEEN = 'quickplay-lb-seen';
+const lbSeen = () => { try { return localStorage.getItem(LB_SEEN) || ''; } catch (e) { return ''; } };
+const markLbSeen = () => { try { localStorage.setItem(LB_SEEN, new Date().toISOString()); } catch (e) {} updateLbDot(); };
+const updateLbDot = () => {
+  const p = getProfile();
+  const seen = lbSeen();
+  const fresh = !!p && todayRows().some((r) => r.player !== p.name && r.created_at && (!seen || r.created_at > seen));
+  const tab = document.querySelector('[data-tab=scores]');
+  let dot = tab.querySelector('.dot');
+  if (fresh && board.hidden && !dot) { dot = document.createElement('span'); dot.className = 'dot'; tab.appendChild(dot); }
+  if ((!fresh || !board.hidden) && dot) dot.remove();
+};
+
 const refreshHome = async () => {
   const p = getProfile();
   if (!p) return;
   Object.keys(pastRows).forEach((k) => delete pastRows[k]); // eerdere dagen opnieuw ophalen (iemand kan later nog gespeeld hebben)
+  if (!isToday()) { const d = shownDay; loadScores(p.group, d).then((r) => { pastRows[d] = r; if (shownDay === d && !drag) render(); }).catch(() => {}); }
   syncGroupGames();
   try {
     const day = dayStr();
@@ -231,6 +249,7 @@ const refreshHome = async () => {
     try { localStorage.setItem('quickplay-home', JSON.stringify(home)); } catch (e) {}
     if (!drag) render();
     planReminders();
+    updateLbDot();
   } catch (e) { /* offline: laat de laatst bekende scores staan */ }
 };
 
@@ -257,6 +276,7 @@ let lastGame = null;
 const open = (i) => {
   const g = games[i];
   if (!g || editing) return;
+  if (g.isNew) { delete g.isNew; delete g.addedBy; save(); render(); }
   if (isDemo) { lastGame = { g, t: Date.now() - 5000 }; offerScore(); return; }
   lastGame = { g, t: Date.now() };
   hideToast();
@@ -406,7 +426,7 @@ const setTab = (tab) => {
     if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
   const scores = tab === 'scores';
-  if (!scores) refreshHome();
+  if (!scores) refreshHome(); else markLbSeen();
   grid.hidden = scores; board.hidden = !scores;
   renderDayBar();
   document.querySelector('.hbtns').hidden = scores; $('who').hidden = !scores;
@@ -582,6 +602,50 @@ scoreForm.addEventListener('submit', async (e) => {
   } finally { btn.disabled = false; btn.textContent = 'Opslaan'; }
 });
 
+// ---- Viering ----
+const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const confetti = () => {
+  if (reduceMotion()) return;
+  const c = $('confetti'), ctx = c.getContext('2d');
+  const W = c.width = innerWidth * devicePixelRatio, H = c.height = innerHeight * devicePixelRatio;
+  const cols = ['#3b1760', '#e6a92a', '#8ed3b8', '#ff8fa3', '#ffd23d'];
+  const parts = Array.from({ length: 140 }, () => ({
+    x: W / 2 + (Math.random() - .5) * W * .3, y: H * .35, vx: (Math.random() - .5) * 14 * devicePixelRatio,
+    vy: (-Math.random() * 16 - 6) * devicePixelRatio, s: (5 + Math.random() * 6) * devicePixelRatio, r: Math.random() * 6, vr: (Math.random() - .5) * .4, c: cols[Math.floor(Math.random() * cols.length)]
+  }));
+  const t0 = performance.now();
+  const step = (t) => {
+    const el = t - t0;
+    ctx.clearRect(0, 0, W, H);
+    parts.forEach((q) => { q.vy += .45 * devicePixelRatio; q.vx *= .99; q.x += q.vx; q.y += q.vy; q.r += q.vr;
+      ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.r); ctx.globalAlpha = Math.max(0, 1 - el / 1800); ctx.fillStyle = q.c; ctx.fillRect(-q.s / 2, -q.s / 4, q.s, q.s / 2); ctx.restore(); });
+    if (el < 1800) requestAnimationFrame(step); else ctx.clearRect(0, 0, W, H);
+  };
+  requestAnimationFrame(step);
+};
+// dagscore telt even op naar het nieuwe getal
+const shownScore = {};
+const countUp = () => {
+  document.querySelectorAll('#daybar [data-to]').forEach((el) => {
+    const key = el.dataset.key, to = Number(el.dataset.to), from = shownScore[key] ?? to;
+    shownScore[key] = to;
+    if (from === to || reduceMotion()) { el.textContent = to; return; }
+    const t0 = performance.now(), dur = 700;
+    const tick = (t) => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = Math.round(from + (to - from) * e); if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+};
+// je wint de dag: één keer per dag confetti
+const CELEB = 'quickplay-celebrated';
+const maybeCelebrateDay = (done, open, winner) => {
+  const p = getProfile();
+  if (!p || !isToday() || !done || !open || winner !== p.name) return;
+  let last = ''; try { last = localStorage.getItem(CELEB) || ''; } catch (e) {}
+  if (last === dayStr()) return;
+  try { localStorage.setItem(CELEB, dayStr()); } catch (e) {}
+  setTimeout(() => { confetti(); showInfo('🏆 Je wint vandaag!'); }, 400);
+};
+
 // Nieuw record: kom je met deze score in een top 5 (spel of dagscore), dan zie je meteen welke plek.
 const announceRecord = async (g) => {
   const p = getProfile();
@@ -594,7 +658,7 @@ const announceRecord = async (g) => {
     const parts = [];
     if (mine) parts.push(Number(mine.rank) === 1 ? `Nieuw record bij ${g.name}!` : `Plek ${mine.rank} in de top 5 van ${g.name}`);
     if (myDay) parts.push(Number(myDay.rank) === 1 ? 'en je hoogste dagscore ooit!' : `dagscore op plek ${myDay.rank}`);
-    if (parts.length) showInfo('🎉 ' + parts.join(' · '));
+    if (parts.length) { showInfo('🎉 ' + parts.join(' · ')); confetti(); }
   } catch (e) {}
 };
 const showInfo = (text) => {
@@ -722,6 +786,52 @@ $('daybar').addEventListener('click', (e) => {
   if (b && !b.disabled) goDay(Number(b.dataset.day));
 });
 
+// ---------------- Omlaag trekken en vegen ----------------
+const ptr = $('ptr');
+let touch = null;
+const anyDialogOpen = () => !!document.querySelector('dialog[open]');
+document.addEventListener('touchstart', (e) => {
+  if (anyDialogOpen() || drag || e.touches.length !== 1) { touch = null; return; }
+  const t = e.touches[0];
+  touch = { x: t.clientX, y: t.clientY, top: window.scrollY <= 0, inBar: !!e.target.closest('#daybar'), mode: null, dy: 0 };
+}, { passive: true });
+document.addEventListener('touchmove', (e) => {
+  if (!touch) return;
+  const t = e.touches[0], dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+  if (!touch.mode) {
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) touch.mode = 'swipe';
+    else if (dy > 12 && touch.top && Math.abs(dy) > Math.abs(dx)) touch.mode = 'pull';
+    else if (Math.abs(dy) > 12) { touch = null; return; }
+  }
+  if (touch.mode === 'pull') {
+    touch.dy = Math.max(0, dy);
+    const pull = Math.min(90, touch.dy * 0.5);
+    ptr.style.transform = `translateY(${pull - 10}px) rotate(${pull * 4}deg)`;
+    ptr.style.opacity = Math.min(1, pull / 40);
+    ptr.classList.toggle('ready', pull >= 60);
+  }
+  touch.dx = dx;
+}, { passive: true });
+document.addEventListener('touchend', async () => {
+  const t = touch; touch = null;
+  if (!t) return;
+  if (t.mode === 'pull') {
+    if (Math.min(90, t.dy * 0.5) >= 60) {
+      ptr.classList.remove('ready'); ptr.classList.add('spin'); ptr.style.transform = 'translateY(40px)';
+      try { await refreshHome(); if (!board.hidden) await showBoard(); } catch (e) {}
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    ptr.classList.remove('spin', 'ready'); ptr.style.transform = ''; ptr.style.opacity = '';
+    return;
+  }
+  if (t.mode === 'swipe' && Math.abs(t.dx || 0) > 60) {
+    if (t.inBar && board.hidden) { goDay(t.dx > 0 ? -1 : 1); return; } // dagscore-blok: vorige/volgende dag
+    if (editing) return;
+    if (t.dx < 0 && board.hidden) { viewDay = dayStr(); lbView = 'records'; boardList.innerHTML = ''; showBoard(); }
+    else if (t.dx > 0 && !board.hidden) showGames();
+  }
+}, { passive: true });
+
 // ---------------- Herinneringen ----------------
 const remDlg = $('remDlg'), remOn = $('remOn'), remTimes = $('remTimes'), remInfo = $('remInfo'), remErr = $('remErr');
 const remaining = () => {
@@ -786,4 +896,5 @@ $('remForm').addEventListener('submit', async (e) => {
 
 updateBell();
 refreshHome();
+updateLbDot();
 planReminders();
