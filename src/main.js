@@ -478,7 +478,8 @@ const showGames = () => setTab('games');
 document.querySelector('.tabs').addEventListener('click', (e) => {
   const b = e.target.closest('[data-tab]');
   if (!b) return;
-  if (b.dataset.tab === 'scores') { viewDay = dayStr(); showBoard(); } else showGames();
+  // Leaderboards opent altijd op Records (de top 5); de gekozen periode van Onderling blijft wel bewaard.
+  if (b.dataset.tab === 'scores') { viewDay = dayStr(); lbView = 'records'; boardList.innerHTML = ''; showBoard(); } else showGames();
 });
 $('who').addEventListener('click', () => openSetup());
 
